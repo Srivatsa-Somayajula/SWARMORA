@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swarmora — 3D Fleet Dispatch Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg: #0A0E14;
+    --panel: #12181F;
+    --panel-2: #161D26;
+    --border: #232B36;
+    --border-strong: #2E3947;
+    --text-primary: #E7ECF2;
+    --text-secondary: #8B94A3;
+    --text-muted: #566072;
+    --accent: #2FD9C4;
+    --accent-dim: #1A6E64;
+    --amber: #F2A93B;
+    --amber-dim: #6B4F1E;
+    --danger: #E5484D;
+    --success: #3DD68C;
+    --r1: #4E9FE0; --r2: #F2994A; --r3: #EB5757; --r4: #6FCF97; --r5: #F2C94C;
+    --r6: #BB6BD9; --r7: #56CCF2; --r8: #F783AC; --r9: #A3E635; --r10: #FFB199;
+  }
+  * { box-sizing: border-box; }
+  body{ margin:0; background: var(--bg); color: var(--text-primary); font-family: 'Barlow', sans-serif; padding: 28px 20px 60px; }
+  .wrap{ max-width: 1400px; margin: 0 auto; }
+  header{ display:flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+  .brand{ display:flex; align-items: baseline; gap: 10px; }
+  h1{ font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: 0.5px; margin: 0; text-transform: uppercase; }
+  .tag{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); border: 1px solid var(--accent-dim); background: rgba(47,217,196,0.08); padding: 3px 8px; border-radius: 3px; letter-spacing: 0.5px; }
+  .subtitle{ font-size: 13px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+  .layout{ display:flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+  .panel{ background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+
+  .stage-col{ flex: 1 1 680px; min-width: 320px; display: flex; flex-direction: column; gap: 16px; }
+  .stage{ padding: 14px; flex: 0 0 auto; }
+  .stage3d-wrap{ position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 680px; height: auto; border: 1px solid var(--border-strong); border-radius: 4px; overflow: hidden; background: var(--bg); cursor: grab; }
+  .stage3d-wrap.dragging{ cursor: grabbing; }
+  .stage3d-wrap canvas{ display:block; width:100%; height:100%; }
+  .orbit-hint{ position: absolute; bottom: 10px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-muted); background: rgba(10,14,20,0.55); padding: 4px 8px; border-radius: 3px; pointer-events: none; }
+  .legend{ display:flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .legend span{ display:flex; align-items:center; gap:5px; }
+  .legend .lm{ width: 9px; height: 9px; border-radius: 50%; }
+
+  .lower-row{ display:flex; gap: 16px; flex-wrap: wrap; }
+  .lower-row .panel{ flex: 1 1 260px; min-width: 260px; }
+
+  .right-col{ flex: 0 0 340px; min-width: 300px; display: flex; flex-direction: column; gap: 16px; }
+  .card{ padding: 16px; }
+  .card h2{ font-family: 'Barlow Condensed', sans-serif; font-size: 15px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; margin: 0 0 12px; color: var(--text-secondary); }
+  .card .hint{ font-size: 11.5px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin: -6px 0 12px; line-height: 1.5; }
+  .dir-section-title{ font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin: 14px 0 6px; }
+  .dir-section-title:first-child{ margin-top: 0; }
+  .dir-item{ display:flex; align-items:center; gap: 8px; padding: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+  .dir-item:last-child{ border-bottom: none; }
+  .dir-dot{ flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+  .dir-id{ flex: 0 0 auto; color: var(--text-primary); font-weight: 600; }
+  .dir-name{ flex: 1 1 auto; }
+
+  .select-row{ display:flex; align-items:center; gap: 8px; margin-bottom: 10px; }
+  .select-row label{ width: 52px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; flex: 0 0 52px; }
+  .select-row .swatch{ width: 9px; height: 9px; border-radius: 2px; flex: 0 0 9px; }
+  .select-row.from .swatch{ background: var(--amber); }
+  .select-row.to .swatch{ background: var(--accent); }
+  select, .coord-row input{
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; padding: 7px 8px; border-radius: 4px;
+  }
+  select:focus, .coord-row input:focus{ outline: none; border-color: var(--accent); }
+  .coord-row{ display:flex; align-items:center; gap: 8px; margin-bottom: 10px; }
+  .coord-row label{ width: 52px; font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; flex: 0 0 52px; }
+
+  button.primary{ width: 100%; padding: 10px; background: var(--accent); color: #06251F; border: none; border-radius: 4px; font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 0.3px; cursor: pointer; text-transform: uppercase; }
+  button.primary:active{ transform: scale(0.99); }
+  button.primary:disabled{ background: var(--border-strong); color: var(--text-muted); cursor: not-allowed; }
+  button.secondary{ width: 100%; padding: 9px; background: var(--panel-2); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 4px; font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; margin-bottom: 10px; }
+  button.secondary:hover{ border-color: var(--accent); }
+  button.ghost{ width: 100%; padding: 8px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border-strong); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer; margin-top: 8px; }
+  button.ghost:hover{ color: var(--text-primary); border-color: var(--text-muted); }
+
+  .staging-list{ display:flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .staging-empty{ font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-muted); padding: 10px 0; text-align: center; }
+  .staging-item{ display:flex; align-items:center; gap: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 7px 9px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .staging-item .chip{ width: 18px; height: 18px; border-radius: 50%; background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); display:flex; align-items:center; justify-content:center; font-size: 10px; font-weight: 700; flex: 0 0 18px; }
+  .staging-item .info{ flex: 1; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .staging-item .info b{ color: var(--text-primary); font-weight: 600; }
+  .staging-item .remove{ background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+  .staging-item .remove:hover{ color: var(--danger); }
+
+  .roster{ display:flex; flex-direction: column; gap: 7px; max-height: 260px; overflow-y: auto; padding-right: 2px; }
+  .roster-row{ display:flex; align-items:center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .dot{ width: 14px; height: 14px; border-radius: 50%; flex: 0 0 14px; display:flex; align-items:center; justify-content:center; font-size: 8px; font-weight: 700; color: #06090D; }
+  .rname{ width: 44px; color: var(--text-primary); }
+  .rstatus{ flex: 1; text-align: right; }
+  .rstatus.idle{ color: var(--text-muted); }
+  .rstatus.busy{ color: var(--amber); }
+  .rstatus.charging{ color: var(--success); }
+  .spec-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+  table.specs-table td{ white-space: nowrap; }
+  .batt-wrap{ display:inline-block; width:56px; height:7px; border-radius:4px; background: var(--panel-2); border: 1px solid var(--border); vertical-align: middle; overflow:hidden; margin-right:6px; }
+  .batt-bar{ height:100%; border-radius: 3px 0 0 3px; transition: width 0.3s ease; }
+  .batt-label{ font-size: 10px; color: var(--text-muted); vertical-align: middle; }
+  .cond-badge{ font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; letter-spacing: 0.2px; }
+  .cond-badge.cond-ok{ background: rgba(63,214,140,0.14); color: var(--success); }
+  .cond-badge.cond-fair{ background: rgba(242,169,59,0.14); color: var(--amber); }
+  .cond-badge.cond-low{ background: rgba(242,169,59,0.2); color: var(--amber); }
+  .cond-badge.cond-crit{ background: rgba(229,72,77,0.18); color: var(--danger); }
+  .cond-badge.cond-charge{ background: rgba(47,217,196,0.16); color: var(--accent); }
+  .rpos{ color: var(--text-muted); width: 66px; text-align:right; }
+
+  .log{ height: 170px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.7; }
+  .log-entry{ color: var(--text-secondary); white-space: pre-wrap; }
+  .log-entry .t{ color: var(--text-muted); }
+  .log-entry.pickup{ color: var(--amber); }
+  .log-entry.deliver{ color: var(--success); }
+  .log-entry.dispatch{ color: var(--r1); }
+  .log-entry.queue{ color: var(--danger); }
+  .log-entry.yield{ color: var(--r6); }
+  .log-entry.charge{ color: var(--accent); }
+
+  .console-table-wrap{ max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 10px; }
+  table.console-table{ width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+  table.console-table thead th{ position: sticky; top: 0; text-align: left; background: var(--panel-2); color: var(--text-muted); padding: 6px 7px; font-weight: 600; border-bottom: 1px solid var(--border-strong); }
+  table.console-table td{ padding: 6px 7px; color: var(--text-secondary); border-top: 1px solid var(--border); vertical-align: top; }
+  table.console-table td.ok{ color: var(--success); }
+  table.console-table td.err{ color: var(--danger); }
+  .console-input-row{ display:flex; gap: 8px; }
+  .console-input-row input{
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; padding: 8px 9px; border-radius: 4px;
+  }
+  .console-input-row input:focus{ outline: none; border-color: var(--accent); }
+  .console-input-row button{
+    padding: 8px 14px; background: var(--accent); color: #06251F; border: none; border-radius: 4px;
+    font-family: 'Barlow', sans-serif; font-weight: 600; font-size: 12.5px; cursor: pointer;
+  }
+
+  .console-select-row{ display:flex; gap: 10px; margin-bottom: 10px; }
+  .console-select-col{ flex: 1 1 50%; display:flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .console-select-col label{ display:flex; align-items:center; gap: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .console-select-col label .sw{ width: 8px; height: 8px; border-radius: 2px; flex: 0 0 8px; }
+  .console-select-col.track label .sw{ background: var(--amber); }
+  .console-select-col.bay label .sw{ background: var(--accent); }
+  .console-select-col select, .console-select-col input{
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; padding: 8px 8px; border-radius: 4px;
+  }
+  .console-select-col select:focus, .console-select-col input:focus{ outline: none; border-color: var(--accent); }
+
+  @media (max-width: 1180px){
+    .layout{ justify-content: center; }
+    .stage-col{ flex-basis: 100%; max-width: 680px; margin: 0 auto; }
+    .right-col{ flex-basis: 100%; max-width: 680px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Swarmora</h1>
+      <span class="tag">3D fleet dispatch sim</span>
+    </div>
+    <div class="subtitle">60 × 40 warehouse floor · laid out from the site blueprint — rack farm, sorter &amp; outbound conveyor</div>
+  </header>
+
+  <div class="layout">
+
+    <div class="stage-col">
+
+      <div class="panel stage">
+        <div class="stage3d-wrap" id="stage3dWrap">
+          <div class="orbit-hint">drag to orbit · right-drag (or shift+drag) to pan · scroll to zoom · click a spot to fly there</div>
+        </div>
+        <div class="legend">
+          <span><span class="lm" style="border:2px solid var(--amber); background:transparent;"></span>Pickup track (clears on pickup)</span>
+          <span><span class="lm" style="border:2px dashed var(--accent); background:transparent;"></span>Destination (clears on delivery)</span>
+          <span><span class="lm" style="background:var(--amber); transform:rotate(45deg);"></span>Item — rides the robot, stays at its destination</span>
+          <span><span class="lm" style="border:2px solid #3DD68C; background:transparent;"></span>Charging station — robot docks &amp; recharges here</span>
+          <span>Each robot leaves a colored trail as it travels</span>
+        </div>
+      </div>
+
+      <div class="lower-row">
+
+        <div class="panel card">
+          <h2>Fleet roster (10 robots)</h2>
+          <div class="roster" id="roster"></div>
+        </div>
+
+        <div class="panel card">
+          <h2>Dispatch log</h2>
+          <div class="log" id="logEl"></div>
+        </div>
+
+      </div>
+
+      <div class="panel card">
+        <h2>Fleet specs &amp; telemetry</h2>
+        <div class="hint">Live battery, condition and duty stats for every robot — pulled straight off the sim.</div>
+        <div class="console-table-wrap" style="max-height:280px;">
+          <table class="console-table specs-table">
+            <thead><tr><th>Robot</th><th>Model</th><th>Battery</th><th>Status</th><th>Condition</th><th>Trips</th><th>Distance</th></tr></thead>
+            <tbody id="specsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel card">
+        <h2>Conflict avoidance table</h2>
+        <div class="hint">Every en-route robot books its next grid cell &amp; tick with the A* planner — the reservation table below is what keeps two robots from ever being routed onto the same cell at the same time.</div>
+        <div class="console-table-wrap" style="max-height:220px;">
+          <table class="console-table">
+            <thead><tr><th>Robot</th><th>Next cell</th><th>Tick</th><th>Status</th></tr></thead>
+            <tbody id="reservationTbody"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="conflictStat" style="margin-top:8px;">Conflicts resolved by planner: 0</div>
+      </div>
+
+    </div>
+
+    <div class="right-col">
+
+      <div class="panel card">
+        <h2>Command console</h2>
+        <div class="hint">Enter a track to pick up a fresh item — its default destination fills in automatically. To move stock that's already at a destination, type that destination's code or name instead, and give a different one in Destination.</div>
+
+        <div class="console-select-row">
+          <div class="console-select-col track">
+            <label><span class="sw"></span>From</label>
+            <input type="text" id="trackInput" placeholder="e.g. 3, Steel Coils, or BLK-01" autocomplete="off">
+          </div>
+          <div class="console-select-col bay">
+            <label><span class="sw"></span>Destination</label>
+            <input type="text" id="bayInput" placeholder="optional — e.g. BLK-01" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="console-table-wrap" style="margin-top:4px;">
+          <table class="console-table">
+            <thead><tr><th>Time</th><th>Command</th><th>Result</th></tr></thead>
+            <tbody id="consoleTbody"></tbody>
+          </table>
+        </div>
+        <button class="ghost" id="resetBtn" type="button" style="margin-top:10px;">Reset simulation</button>
+      </div>
+
+      <div class="panel card">
+        <h2>Site directory</h2>
+        <div class="hint">Every object on the floor — reference the IDs here when typing a command.</div>
+        <div class="directory" id="directoryList"></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- grid ----------
+  // 60 (E-W) x 40 (N-S) floor, matching the blueprint's wide rectangular footprint
+  var GRID_COLS = 60;
+  var GRID_ROWS = 40;
+  var CELL_WORLD = 2;
+  var STEP_MS = 150;
+  var HALF_COL = (GRID_COLS - 1) / 2;
+  var HALF_ROW = (GRID_ROWS - 1) / 2;
+
+  var ROBOT_COLORS_HEX = [0x4E9FE0,0xF2994A,0xEB5757,0x6FCF97,0xF2C94C,0xBB6BD9,0x56CCF2,0xF783AC,0xA3E635,0xFFB199];
+  var ROBOT_COLORS_CSS = ['var(--r1)','var(--r2)','var(--r3)','var(--r4)','var(--r5)','var(--r6)','var(--r7)','var(--r8)','var(--r9)','var(--r10)'];
+  var ROBOT_COUNT = 10;
+  var AMBER_HEX = 0xF2A93B;
+  var TEAL_HEX = 0x2FD9C4;
+  var MAGENTA_HEX = 0xE84FD8;
+
+  var ITEM_NAMES = ['Steel Coils','Timber Pallets','Electronics','Packaged Foods','Machine Parts','Textiles','Chemical Drums','Spare Parts','Paper Rolls','Raw Material'];
+
+  // Each destination is a named, coded drop zone. Items are pre-assigned to a
+  // destination (several items can share one), so dispatching a track routes
+  // itself unless a different destination is explicitly given.
+  var DEST_DEFS = [
+    { code:'BLK-01', name:'Bulk Yard' },
+    { code:'CS-02',  name:'Cold Storage' },
+    { code:'QC-03',  name:'QC Inspection' },
+    { code:'ASM-04', name:'Assembly Feed' },
+    { code:'PKG-05', name:'Packaging Line' },
+    { code:'HZM-06', name:'Hazmat Bay' },
+    { code:'GEN-07', name:'General Overflow' },
+    { code:'EXD-08', name:'Export Dock' },
+    { code:'RTN-09', name:'Returns Dock' },
+    { code:'FRG-10', name:'Fragile Handling' }
+  ];
+  // item -> default destination code (index-matched to ITEM_NAMES); note several
+  // items share a destination (coils & pallets both go to the Bulk Yard, etc.)
+  var ITEM_DEST_CODE = ['BLK-01','BLK-01','QC-03','CS-02','ASM-04','PKG-05','HZM-06','ASM-04','PKG-05','GEN-07'];
+
+  // ---------- blueprint layout (mirrors the supplied floor-plan drawing) ----------
+  // 11 rack rows across the top of the floor: the first 2 are dense flow racks
+  // (many small bins), the remaining 9 are coarser double-column pallet racks.
+  var RACK_COLS = [2,5,8,11,14,17,20,23,26,29,32];
+  var FLOW_RACK_COUNT = 2;
+  var RACK_ROW_START = 2, RACK_ROW_END = 18;
+  var RACK_LEVELS_FLOW = 26;
+  var RACK_LEVELS_PALLET = 8;
+
+  // bank of 7 shallow shelf units, mid-floor, right of the rack farm
+  var SHELF_COL_START = 39, SHELF_COL_END = 48;
+  var SHELF_ROWS = [4,7,10,13,16,19,22];
+  var SHELF_CELLS = 5;
+
+  // magenta serpentine sorter, against the east wall
+  var SORTER = { colStart:51, colEnd:57, rowStart:7, rowEnd:18 };
+  var SORTER_NODE_ROWS = [8,11,13,16];
+
+  // red accordion carousel, continuing down the east wall below the sorter
+  var CAROUSEL = { colStart:51, colEnd:58, rowStart:19, rowEnd:37 };
+
+  // outbound roller conveyor — bays sit on its north (approach) edge
+  var OUTBOUND = { colStart:23, colEnd:49, approachRow:30, rowStart:31, rowEnd:37 };
+  var OUTBOUND_LANES = 12;
+
+  // small staging rack + yard notch, bottom-left
+  var STAGING_RACK = { colStart:3, colEnd:9, rowStart:20, rowEnd:25 };
+  var NOTCH_COL = 19.5, NOTCH_ROW = 29.5;
+
+  // charging section — dedicated bay in the bottom-left yard, away from the rack
+  // aisles and the outbound conveyor, where low-battery robots go to recharge
+  var CHARGING_ZONE = { rowStart:31, rowEnd:38, colStart:1, colEnd:17 };
+  var CHARGING_STATIONS = [
+    { id:1, row:33, col:4 }, { id:2, row:33, col:9 }, { id:3, row:33, col:14 },
+    { id:4, row:36, col:4 }, { id:5, row:36, col:9 }, { id:6, row:36, col:14 }
+  ];
+  var GREEN_HEX = 0x3DD68C;
+
+  // battery model — robots drain while moving and recharge while docked
+  var BATTERY_DRAIN_PER_STEP = 0.55;   // % lost per grid cell traveled
+  var LOW_BATTERY_THRESHOLD = 20;      // robot heads to charge once idle at/below this
+  var MIN_OPERATE_BATTERY = 20;        // never dispatched for a new task below this (kept in sync with LOW_BATTERY_THRESHOLD so a sub-20% robot is never picked for a fresh job before it charges)
+  var CHARGE_RATE_PER_TICK = 2.6;      // % gained per 280ms charging tick
+  var CHARGE_TARGET = 96;              // charges up to roughly full before releasing
+
+  var ROBOT_SPECS = [
+    { model: 'SW-Runner 150', payloadKg: 80,  topSpeed: 1.6 },
+    { model: 'SW-AMR 200',    payloadKg: 150, topSpeed: 1.2 },
+    { model: 'SW-Hauler 350', payloadKg: 300, topSpeed: 0.9 }
+  ];
+
+  // Tracks sit at the aisle-facing end of the first 10 rack rows; bays line the
+  // outbound conveyor's approach edge at the bottom of the floor.
+  var TRACK_POS = RACK_COLS.slice(0, 10).map(function(c){ return { row: RACK_ROW_END + 1, col: c }; });
+  // Every destination gets its own place on the floor, sized and positioned the
+  // way a real facility would actually organize it — not lined up in a single
+  // tidy grid. Cold Storage and the Hazmat Bay are genuinely walled-off rooms;
+  // Export/Returns sit near the dock wall; Bulk Yard sits in the open yard past
+  // the notch; QC, Assembly, Packaging and Fragile Handling sit in the open
+  // floor between the rack farm and the outbound conveyor, spaced well apart.
+  var BAY_POS = [
+    { row: 38, col: 12 },   // BLK-01 Bulk Yard — open yard, west of the notch
+    { row: 25, col: 43 },   // CS-02  Cold Storage — walled room, mid-east floor
+    { row: 21, col: 14 },   // QC-03  QC Inspection — just off the rack aisles
+    { row: 24, col: 33 },   // ASM-04 Assembly Feed — central open floor
+    { row: 29, col: 33 },   // PKG-05 Packaging Line — feeds the outbound conveyor
+    { row: 26, col: 48 },   // HZM-06 Hazmat Bay — walled, isolated, own entrance
+    { row: 29, col: 46 },   // GEN-07 General Overflow — leftover space, east side
+    { row: 38, col: 55 },   // EXD-08 Export Dock — by the dock wall, near the carousel
+    { row: 38, col: 21 },   // RTN-09 Returns Dock — by the dock wall, near the notch
+    { row: 21, col: 30 }    // FRG-10 Fragile Handling — quiet spot near QC
+  ];
+  var COLD_ROOM = { rowLo: 22.5, rowHi: 28.5, colLo: 39.5, colHi: 46, doorRow: 25.5 };
+  var HAZMAT_ROOM = { rowLo: 23.5, rowHi: 28.5, colLo: 47, colHi: 50.5, doorCol: 48 };
+  var COLD_WALL_COLOR = 0x56CCF2;
+  var HAZMAT_WALL_COLOR = 0xE5484D;
+  var PICKUP_TRACKS = TRACK_POS.map(function(p, i){ return { id: i+1, row: p.row, col: p.col, item: ITEM_NAMES[i], destCode: ITEM_DEST_CODE[i] }; });
+  var DISPATCH_BAYS = BAY_POS.map(function(p, i){ return { id: i+1, row: p.row, col: p.col, code: DEST_DEFS[i].code, name: DEST_DEFS[i].name }; });
+
+  function findDestination(str){
+    var s = (str || '').trim();
+    if(!s) return null;
+    if(/^\d+$/.test(s)){
+      var id = +s;
+      return (id >= 1 && id <= DISPATCH_BAYS.length) ? DISPATCH_BAYS[id-1] : null;
+    }
+    var needle = s.toLowerCase();
+    for(var i=0;i<DISPATCH_BAYS.length;i++){ if(DISPATCH_BAYS[i].code.toLowerCase() === needle) return DISPATCH_BAYS[i]; }
+    for(var j=0;j<DISPATCH_BAYS.length;j++){ if(DISPATCH_BAYS[j].name.toLowerCase().indexOf(needle) !== -1) return DISPATCH_BAYS[j]; }
+    return null;
+  }
+  function defaultDestinationFor(track){
+    for(var i=0;i<DISPATCH_BAYS.length;i++){ if(DISPATCH_BAYS[i].code === track.destCode) return DISPATCH_BAYS[i]; }
+    return DISPATCH_BAYS[0];
+  }
+
+  var RESERVED_CELLS = {};
+  PICKUP_TRACKS.forEach(function(t){ RESERVED_CELLS[t.row+'_'+t.col] = true; });
+  DISPATCH_BAYS.forEach(function(b){ RESERVED_CELLS[b.row+'_'+b.col] = true; });
+  CHARGING_STATIONS.forEach(function(s){ RESERVED_CELLS[s.row+'_'+s.col] = true; });
+
+  // cells occupied by racks / conveyor machinery — robots route around these
+  var BLOCKED_CELLS = {};
+  function blockCell(row, col){ BLOCKED_CELLS[row+'_'+col] = true; }
+  function blockRect(rowStart, rowEnd, colStart, colEnd){
+    for(var r=rowStart; r<=rowEnd; r++) for(var c=colStart; c<=colEnd; c++) blockCell(r,c);
+  }
+  RACK_COLS.forEach(function(c){ blockRect(RACK_ROW_START, RACK_ROW_END, c, c); });
+  SHELF_ROWS.forEach(function(r){ blockRect(r, r, SHELF_COL_START, SHELF_COL_END); });
+  blockRect(SORTER.rowStart, SORTER.rowEnd, SORTER.colStart, SORTER.colEnd);
+  blockRect(CAROUSEL.rowStart, CAROUSEL.rowEnd, CAROUSEL.colStart, CAROUSEL.colEnd);
+  blockRect(OUTBOUND.rowStart, OUTBOUND.rowEnd, OUTBOUND.colStart, OUTBOUND.colEnd);
+  blockRect(STAGING_RACK.rowStart, STAGING_RACK.rowEnd, STAGING_RACK.colStart, STAGING_RACK.colEnd);
+
+  // ---------- wall collision (edge-based) ----------
+  // Racks/conveyors are solid blocks, so blocking whole cells works for them.
+  // Real walls (Cold Storage, Hazmat Bay, the yard notch) are thin partitions
+  // that sit *between* two open, drivable cells — a robot standing right next
+  // to one of those rooms still needs a legal floor cell on both sides of the
+  // wall line. So walls are modeled as blocked *edges* (a forbidden step from
+  // cell A to adjacent cell B) rather than blocked cells, and every wall
+  // segment registers its own blocked edges the moment it's drawn — see
+  // wallH()/wallV() below — so no wall can ever be routed through, including
+  // any added later.
+  var BLOCKED_EDGES = {};
+  function edgeKey(r1,c1,r2,c2){
+    if(r1 > r2 || (r1 === r2 && c1 > c2)){ var tr=r1,tc=c1; r1=r2; c1=c2; r2=tr; c2=tc; }
+    return r1+'_'+c1+'|'+r2+'_'+c2;
+  }
+  function blockEdge(r1,c1,r2,c2){ BLOCKED_EDGES[edgeKey(r1,c1,r2,c2)] = true; }
+  function isEdgeBlocked(r1,c1,r2,c2){ return !!BLOCKED_EDGES[edgeKey(r1,c1,r2,c2)]; }
+  // a wall drawn at a half-integer coordinate (e.g. row 22.5) sits exactly on
+  // the boundary between the two adjacent integer cells (22 and 23). A wall
+  // drawn at a whole-integer coordinate (a couple of the room bounds are) is
+  // treated as sitting just before that coordinate, between (col-1) and (col).
+  function wallCellPair(v){
+    var lo = Math.floor(v), hi = Math.ceil(v);
+    if(lo === hi){ lo = v - 1; hi = v; }
+    return [lo, hi];
+  }
+  // Mirrors the doorway-gap math in wallH()/wallV() so the blocked edges line
+  // up exactly with the gaps left open in the rendered wall mesh.
+  function registerBlockedWall(fixedVal, boundA, boundB, gaps, horizontal){
+    gaps = gaps || [];
+    var lo = Math.min(boundA, boundB), hi = Math.max(boundA, boundB);
+    var cuts = gaps.filter(function(g){ return g > lo && g < hi; }).sort(function(a,b){ return a-b; });
+    var segments = [];
+    var cursor = lo;
+    cuts.forEach(function(g){
+      var gs = g - 0.55, ge = g + 0.55;
+      if(gs > cursor) segments.push([cursor, gs]);
+      cursor = Math.max(cursor, ge);
+    });
+    if(hi > cursor) segments.push([cursor, hi]);
+
+    var pair = wallCellPair(fixedVal);
+    var a = pair[0], b = pair[1];
+    segments.forEach(function(seg){
+      var segLo = Math.ceil(seg[0] - 1e-9);
+      var segHi = Math.floor(seg[1] + 1e-9);
+      for(var i = segLo; i <= segHi; i++){
+        if(horizontal){
+          if(i < 0 || i >= GRID_COLS) continue;
+          blockEdge(a, i, b, i);
+        } else {
+          if(i < 0 || i >= GRID_ROWS) continue;
+          blockEdge(i, a, i, b);
+        }
+      }
+    });
+  }
+
+  // ---------- DOM refs ----------
+  var stageWrap = document.getElementById('stage3dWrap');
+  var rosterEl = document.getElementById('roster');
+  var logEl = document.getElementById('logEl');
+  var directoryEl = document.getElementById('directoryList');
+  var specsTbody = document.getElementById('specsTbody');
+  var resetBtn = document.getElementById('resetBtn');
+  var consoleTbody = document.getElementById('consoleTbody');
+  var trackInput = document.getElementById('trackInput');
+  var bayInput = document.getElementById('bayInput');
+
+  var robots = [];
+  var pendingQueue = [];
+  var taskIdCounter = 0;
+  var resetToken = 0;
+
+  // ---------- time-space reservation table (conflict avoidance) ----------
+  // Every robot that is actively executing a planned route books its cell for
+  // every tick it will occupy it (including ticks spent waiting in place).
+  // The A* planner below refuses to route any *other* robot through a cell at
+  // a tick that's already booked, which is what stops robots from planning
+  // themselves into head-on jams or cell collisions in the first place.
+  var simClockStart = performance.now();
+  var reservationTable = {}; // key: tick_row_col -> robotId
+  var conflictsResolved = 0;
+  var reservationTbody = document.getElementById('reservationTbody');
+  var conflictStatEl = document.getElementById('conflictStat');
+
+  function currentTick(){ return Math.max(0, Math.round((performance.now() - simClockStart) / STEP_MS)); }
+  function resKey(t, r, c){ return t + '_' + r + '_' + c; }
+  function reservedBy(t, r, c){ return reservationTable[resKey(t, r, c)]; }
+  function reserveCell(t, r, c, robotId){ reservationTable[resKey(t, r, c)] = robotId; }
+  function clearReservationsFor(robotId){
+    for(var k in reservationTable){ if(reservationTable[k] === robotId) delete reservationTable[k]; }
+  }
+  function sweepReservations(){
+    var cutoff = currentTick() - 4;
+    for(var k in reservationTable){
+      var t = parseInt(k.split('_')[0], 10);
+      if(t < cutoff) delete reservationTable[k];
+    }
+  }
+  setInterval(sweepReservations, 4000);
+
+  // ---------- battery sentinel ----------
+  // safety net on top of the post-delivery battery check: catches any robot
+  // that is sitting idle at/below LOW_BATTERY_THRESHOLD (e.g. one that was
+  // nudged aside, or idled back at a track without ever re-checking its
+  // charge) and sends it to dock instead of letting it sit there draining
+  // toward zero.
+  function batterySentinel(){
+    for(var i=0;i<robots.length;i++){
+      var r = robots[i];
+      if(r.status === 'idle' && r.battery <= LOW_BATTERY_THRESHOLD){
+        chargeRobot(r, resetToken);
+      }
+    }
+  }
+  setInterval(batterySentinel, 1000);
+
+  function renderReservationTable(){
+    if(!reservationTbody) return;
+    reservationTbody.innerHTML = '';
+    var active = robots.filter(function(r){ return r.enRoute; });
+    active.sort(function(a,b){ return a.id - b.id; });
+    active.forEach(function(r){
+      var tr = document.createElement('tr');
+      var tdId = document.createElement('td'); tdId.textContent = 'Robot ' + r.id;
+      var tdCell = document.createElement('td');
+      tdCell.textContent = r.nextReservedCell ? ('(' + r.nextReservedCell.row + ',' + r.nextReservedCell.col + ')') : '—';
+      var tdTick = document.createElement('td');
+      tdTick.textContent = r.nextReservedCell ? r.nextReservedCell.t : '—';
+      var tdStatus = document.createElement('td');
+      tdStatus.textContent = r.nextReservedCell && r.nextReservedCell.waited ? 'Holding' : 'Reserved';
+      [tdId, tdCell, tdTick, tdStatus].forEach(function(td){ tr.appendChild(td); });
+      reservationTbody.appendChild(tr);
+    });
+    if(active.length === 0){
+      var tr = document.createElement('tr');
+      var td = document.createElement('td'); td.colSpan = 4; td.className = 'muted'; td.textContent = 'No robots en route right now.';
+      tr.appendChild(td); reservationTbody.appendChild(tr);
+    }
+    if(conflictStatEl) conflictStatEl.textContent = 'Conflicts resolved by planner: ' + conflictsResolved;
+  }
+
+  function renderDirectory(){
+    directoryEl.innerHTML = '';
+    var trackTitle = document.createElement('div'); trackTitle.className = 'dir-section-title'; trackTitle.textContent = 'Pickup tracks';
+    directoryEl.appendChild(trackTitle);
+    PICKUP_TRACKS.forEach(function(t){
+      var row = document.createElement('div'); row.className = 'dir-item';
+      var dot = document.createElement('span'); dot.className = 'dir-dot'; dot.style.background = 'var(--amber)';
+      var id = document.createElement('span'); id.className = 'dir-id'; id.textContent = 'T' + t.id;
+      var name = document.createElement('span'); name.className = 'dir-name'; name.textContent = t.item + ' \u2192 ' + t.destCode;
+      row.appendChild(dot); row.appendChild(id); row.appendChild(name);
+      directoryEl.appendChild(row);
+    });
+
+    var bayTitle = document.createElement('div'); bayTitle.className = 'dir-section-title'; bayTitle.textContent = 'Destinations';
+    directoryEl.appendChild(bayTitle);
+    DISPATCH_BAYS.forEach(function(b){
+      var row = document.createElement('div'); row.className = 'dir-item';
+      var dot = document.createElement('span'); dot.className = 'dir-dot'; dot.style.background = 'var(--accent)';
+      var id = document.createElement('span'); id.className = 'dir-id'; id.textContent = b.code;
+      var name = document.createElement('span'); name.className = 'dir-name'; name.textContent = b.name;
+      row.appendChild(dot); row.appendChild(id); row.appendChild(name);
+      directoryEl.appendChild(row);
+    });
+
+    var chgTitle = document.createElement('div'); chgTitle.className = 'dir-section-title'; chgTitle.textContent = 'Charging stations';
+    directoryEl.appendChild(chgTitle);
+    CHARGING_STATIONS.forEach(function(s){
+      var row = document.createElement('div'); row.className = 'dir-item';
+      var dot = document.createElement('span'); dot.className = 'dir-dot'; dot.style.background = '#3DD68C';
+      var id = document.createElement('span'); id.className = 'dir-id'; id.textContent = 'CHG' + s.id;
+      var name = document.createElement('span'); name.className = 'dir-name'; name.textContent = 'Charger ' + s.id;
+      row.appendChild(dot); row.appendChild(id); row.appendChild(name);
+      directoryEl.appendChild(row);
+    });
+
+    var zoneTitle = document.createElement('div'); zoneTitle.className = 'dir-section-title'; zoneTitle.textContent = 'Zones';
+    directoryEl.appendChild(zoneTitle);
+    [
+      { name: 'Rack farm / shelf bank', color: '#5A7FE0' },
+      { name: 'Sorter (magenta)', color: '#E84FD8' },
+      { name: 'Carousel / outbound conveyor', color: '#E5484D' },
+      { name: 'Staging yard', color: 'var(--text-muted)' },
+      { name: 'Charging section', color: '#3DD68C' }
+    ].forEach(function(z){
+      var row = document.createElement('div'); row.className = 'dir-item';
+      var dot = document.createElement('span'); dot.className = 'dir-dot'; dot.style.background = z.color;
+      var name = document.createElement('span'); name.className = 'dir-name'; name.textContent = z.name;
+      row.appendChild(dot); row.appendChild(name);
+      directoryEl.appendChild(row);
+    });
+  }
+
+  // ---------- three.js setup ----------
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0C121C);
+  scene.fog = new THREE.Fog(0x0C121C, 120, 380);
+
+  var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 900);
+  var orbit = { azimuth: Math.PI/4, polar: 0.95, radius: 175, radiusGoal: 175,
+    target: {x:0, z:0}, targetGoal: {x:0, z:0} };
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stageWrap.insertBefore(renderer.domElement, stageWrap.firstChild);
+
+  function resizeRenderer(){
+    var w = stageWrap.clientWidth, h = stageWrap.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resizeRenderer);
+
+  var ambient = new THREE.AmbientLight(0x35455c, 0.55);
+  scene.add(ambient);
+  var hemi = new THREE.HemisphereLight(0x4a6484, 0x0a0e14, 1.35);
+  scene.add(hemi);
+  var dirLight = new THREE.DirectionalLight(0xfff4de, 1.25);
+  dirLight.position.set(56, 80, 36);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(2048, 2048);
+  dirLight.shadow.camera.left = -70; dirLight.shadow.camera.right = 70;
+  dirLight.shadow.camera.top = 50; dirLight.shadow.camera.bottom = -50;
+  dirLight.shadow.camera.near = 5; dirLight.shadow.camera.far = 220;
+  scene.add(dirLight);
+  var fillLight = new THREE.DirectionalLight(0x9fd8ff, 0.5);
+  fillLight.position.set(-45, 55, -38);
+  scene.add(fillLight);
+  var accentGlow1 = new THREE.PointLight(0xF2A93B, 1.0, 60, 2);
+  accentGlow1.position.set((TRACK_POS[0].col-HALF_COL)*CELL_WORLD, 9, (RACK_ROW_START-HALF_ROW)*CELL_WORLD);
+  scene.add(accentGlow1);
+  var accentGlow2 = new THREE.PointLight(MAGENTA_HEX, 1.15, 60, 2);
+  accentGlow2.position.set((SORTER.colStart-HALF_COL)*CELL_WORLD, 9, ((SORTER.rowStart+SORTER.rowEnd)/2-HALF_ROW)*CELL_WORLD);
+  scene.add(accentGlow2);
+  var accentGlow3 = new THREE.PointLight(0x2FD9C4, 1.0, 55, 2);
+  accentGlow3.position.set(((OUTBOUND.colStart+OUTBOUND.colEnd)/2-HALF_COL)*CELL_WORLD, 8, (OUTBOUND.approachRow-HALF_ROW)*CELL_WORLD);
+  scene.add(accentGlow3);
+
+
+  function buildFloorTexture(){
+    var pxPerCell = 24;
+    var sizeX = GRID_COLS * pxPerCell, sizeY = GRID_ROWS * pxPerCell;
+    var c = document.createElement('canvas');
+    c.width = sizeX; c.height = sizeY;
+    var ctx = c.getContext('2d');
+
+    // --- base: sealed concrete slab ---
+    ctx.fillStyle = '#43474C';
+    ctx.fillRect(0,0,sizeX,sizeY);
+
+    // poured-slab bays (subtle banding, like real slab pours every ~5 cells)
+    for(var col=0; col<GRID_COLS; col++){
+      var bay = Math.floor(col/5) % 2 === 0;
+      ctx.fillStyle = bay ? '#464A50' : '#414549';
+      ctx.fillRect(col*pxPerCell, 0, pxPerCell, sizeY);
+    }
+
+    // soft mottling / moisture stains typical of a working concrete floor
+    var rand = (function(){ var s = 42; return function(){ s = (s*9301+49297)%233280; return s/233280; }; })();
+    for(var m=0; m<300; m++){
+      var mx = rand()*sizeX, my = rand()*sizeY;
+      var mr = 18 + rand()*70;
+      var dark = rand() < 0.55;
+      var grad = ctx.createRadialGradient(mx,my,0,mx,my,mr);
+      grad.addColorStop(0, dark ? 'rgba(15,16,18,0.10)' : 'rgba(120,122,126,0.07)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2); ctx.fill();
+    }
+    // fine speckle grain
+    for(var n=0; n<9500; n++){
+      var sx = rand()*sizeX, sy = rand()*sizeY;
+      var v = rand();
+      ctx.fillStyle = v < 0.5 ? 'rgba(10,10,10,0.05)' : 'rgba(200,200,200,0.045)';
+      ctx.fillRect(sx, sy, 1.2, 1.2);
+    }
+    // occasional tire scuff streaks along the aisles
+    for(var s2=0; s2<30; s2++){
+      var sy2 = rand()*sizeY, sx2 = rand()*sizeX;
+      var len = 40 + rand()*160;
+      var horiz = rand() < 0.5;
+      ctx.strokeStyle = 'rgba(12,12,13,' + (0.05 + rand()*0.05).toFixed(3) + ')';
+      ctx.lineWidth = 2 + rand()*3;
+      ctx.beginPath();
+      if(horiz){ ctx.moveTo(sx2, sy2); ctx.lineTo(sx2+len, sy2 + (rand()-0.5)*6); }
+      else{ ctx.moveTo(sx2, sy2); ctx.lineTo(sx2 + (rand()-0.5)*6, sy2+len); }
+      ctx.stroke();
+    }
+
+    // --- functional zone tints, matching the blueprint's layout ---
+    function tint(rowStart, rowEnd, colStart, colEnd, color){
+      ctx.fillStyle = color;
+      ctx.fillRect(colStart*pxPerCell, rowStart*pxPerCell, (colEnd-colStart+1)*pxPerCell, (rowEnd-rowStart+1)*pxPerCell);
+    }
+    tint(RACK_ROW_START-1, RACK_ROW_END+1, 0, 36, 'rgba(120,145,200,0.07)');                         // rack farm
+    tint(SHELF_ROWS[0]-1, SHELF_ROWS[SHELF_ROWS.length-1]+1, SHELF_COL_START-1, SHELF_COL_END+1, 'rgba(120,145,200,0.07)'); // shelf bank
+    tint(SORTER.rowStart, SORTER.rowEnd, SORTER.colStart, SORTER.colEnd, 'rgba(232,79,216,0.14)');   // magenta sorter
+    tint(CAROUSEL.rowStart, CAROUSEL.rowEnd, CAROUSEL.colStart, CAROUSEL.colEnd, 'rgba(229,72,77,0.12)'); // carousel
+    tint(OUTBOUND.rowStart, OUTBOUND.rowEnd, OUTBOUND.colStart, OUTBOUND.colEnd, 'rgba(229,72,77,0.10)'); // outbound conveyor
+    tint(STAGING_RACK.rowStart, STAGING_RACK.rowEnd, STAGING_RACK.colStart, STAGING_RACK.colEnd, 'rgba(229,72,77,0.10)'); // staging rack
+    tint(NOTCH_ROW+0.5, GRID_ROWS-1, 0, NOTCH_COL-0.5, 'rgba(160,178,200,0.06)'); // yard notch
+    tint(CHARGING_ZONE.rowStart, CHARGING_ZONE.rowEnd, CHARGING_ZONE.colStart, CHARGING_ZONE.colEnd, 'rgba(61,214,140,0.13)'); // charging section
+    // individual destination zones — each tinted on the floor around its base
+    tint(NOTCH_ROW+1, GRID_ROWS-1, 8, 16, 'rgba(242,169,59,0.09)');            // BLK-01 Bulk Yard
+    tint(COLD_ROOM.rowLo, COLD_ROOM.rowHi, COLD_ROOM.colLo, COLD_ROOM.colHi, 'rgba(86,204,242,0.10)'); // CS-02 Cold Storage
+    tint(19.5, 23, 11, 17, 'rgba(47,217,196,0.08)');                            // QC-03 QC Inspection
+    tint(21.5, 26.5, 30, 36, 'rgba(47,217,196,0.08)');                          // ASM-04 Assembly Feed
+    tint(26.5, 30.5, 30, 36, 'rgba(47,217,196,0.08)');                          // PKG-05 Packaging Line
+    tint(HAZMAT_ROOM.rowLo, HAZMAT_ROOM.rowHi, HAZMAT_ROOM.colLo, HAZMAT_ROOM.colHi, 'rgba(229,72,77,0.14)'); // HZM-06 Hazmat Bay
+    tint(26.5, 31, 43, 49, 'rgba(47,217,196,0.06)');                            // GEN-07 General Overflow
+    tint(35, 39, 52, 58, 'rgba(47,217,196,0.08)');                              // EXD-08 Export Dock
+    tint(35, 39, 18, 24, 'rgba(47,217,196,0.08)');                              // RTN-09 Returns Dock
+    tint(19.5, 23, 27, 33, 'rgba(47,217,196,0.08)');                            // FRG-10 Fragile Handling
+
+    // --- expansion-joint grid (faint, like real slab control joints) ---
+    ctx.strokeStyle = 'rgba(20,22,25,0.35)';
+    ctx.lineWidth = 1;
+    for(var i=0;i<=GRID_COLS;i++){ ctx.beginPath(); ctx.moveTo(i*pxPerCell,0); ctx.lineTo(i*pxPerCell,sizeY); ctx.stroke(); }
+    for(var i2=0;i2<=GRID_ROWS;i2++){ ctx.beginPath(); ctx.moveTo(0,i2*pxPerCell); ctx.lineTo(sizeX,i2*pxPerCell); ctx.stroke(); }
+
+    // --- painted safety-yellow aisle lane markings, aligned to the rack aisles ---
+    ctx.strokeStyle = 'rgba(232,183,66,0.5)';
+    ctx.lineWidth = 3;
+    RACK_COLS.forEach(function(rc){
+      var x = (rc+1.5)*pxPerCell;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x, (RACK_ROW_END+1)*pxPerCell); ctx.stroke();
+    });
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = 'rgba(232,183,66,0.34)';
+    for(var j=5; j<GRID_ROWS; j+=5){
+      ctx.beginPath(); ctx.moveTo(0,j*pxPerCell); ctx.lineTo(sizeX,j*pxPerCell); ctx.stroke();
+    }
+
+    // --- dashed boundary marking the yard notch threshold (not a wall — a painted line) ---
+    ctx.strokeStyle = 'rgba(230,233,238,0.55)';
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([10,8]);
+    ctx.beginPath();
+    ctx.moveTo(0, NOTCH_ROW*pxPerCell);
+    ctx.lineTo(NOTCH_COL*pxPerCell, NOTCH_ROW*pxPerCell);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // hazard hatch stripe along the outbound conveyor's approach edge
+    var hy = (OUTBOUND.approachRow+0.55)*pxPerCell, hh = pxPerCell*0.55;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(OUTBOUND.colStart*pxPerCell, hy, (OUTBOUND.colEnd-OUTBOUND.colStart+1)*pxPerCell, hh); ctx.clip();
+    ctx.fillStyle = '#3A3D41'; ctx.fillRect(OUTBOUND.colStart*pxPerCell, hy, (OUTBOUND.colEnd-OUTBOUND.colStart+1)*pxPerCell, hh);
+    var stripeW = 16;
+    for(var hx = OUTBOUND.colStart*pxPerCell - hh; hx < OUTBOUND.colEnd*pxPerCell + hh; hx += stripeW*2){
+      ctx.fillStyle = 'rgba(232,183,66,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(hx, hy+hh); ctx.lineTo(hx+stripeW, hy+hh); ctx.lineTo(hx+stripeW+hh, hy); ctx.lineTo(hx+hh, hy);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+
+    // faint coordinate labels for dev reference
+    ctx.fillStyle = 'rgba(220,225,232,0.4)';
+    ctx.font = '600 11px JetBrains Mono, monospace';
+    for(var k=0;k<GRID_COLS;k+=10){ ctx.fillText(String(k), k*pxPerCell+3, 12); }
+    for(var k2b=0;k2b<GRID_ROWS;k2b+=10){ ctx.fillText(String(k2b), 3, k2b*pxPerCell+14); }
+
+    var tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  var floorGeo = new THREE.PlaneGeometry(GRID_COLS*CELL_WORLD, GRID_ROWS*CELL_WORLD);
+  var floorMat = new THREE.MeshStandardMaterial({ map: buildFloorTexture(), roughness: 0.94, metalness: 0.03, emissive: 0x0a0a0a, emissiveIntensity: 0.18 });
+  var floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.rotation.x = -Math.PI/2;
+  floorMesh.receiveShadow = true;
+  scene.add(floorMesh);
+
+  function cellToWorld(row, col){
+    return { x: (col - HALF_COL) * CELL_WORLD, z: (row - HALF_ROW) * CELL_WORLD };
+  }
+
+  function makeLabelSprite(text, textColor, scaleX, scaleY){
+    var c = document.createElement('canvas');
+    c.width = 180; c.height = 80;
+    var ctx = c.getContext('2d');
+    ctx.clearRect(0,0,180,80);
+    ctx.font = '700 22px JetBrains Mono, monospace';
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var lines = text.split('\n');
+    var lineHeight = 26;
+    var startY = 40 - (lines.length-1)*lineHeight/2;
+    lines.forEach(function(line, i){ ctx.fillText(line, 90, startY + i*lineHeight); });
+    var tex = new THREE.CanvasTexture(c);
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    var sprite = new THREE.Sprite(mat);
+    sprite.scale.set(scaleX || 2.4, scaleY || 1.05, 1);
+    return sprite;
+  }
+
+  // ---------- walls & zone divisions (per floor plan) ----------
+  var WALL_COLOR = 0x415064;
+  var DOCK_WALL_COLOR = 0x4E607A;
+
+  function addWall(row1, col1, row2, col2, opts){
+    opts = opts || {};
+    var height = opts.height || 2.6;
+    var thickness = opts.thickness || 0.3;
+    var color = opts.color || WALL_COLOR;
+    var p1 = cellToWorld(row1, col1), p2 = cellToWorld(row2, col2);
+    var dx = p2.x - p1.x, dz = p2.z - p1.z;
+    var length = Math.sqrt(dx*dx + dz*dz);
+    if(length < 0.05) return null;
+    var geo = new THREE.BoxGeometry(length, height, thickness);
+    var mat = new THREE.MeshStandardMaterial({
+      color: color, roughness: 0.55, metalness: 0.25,
+      emissive: new THREE.Color(color).multiplyScalar(0.22)
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set((p1.x+p2.x)/2, height/2, (p1.z+p2.z)/2);
+    mesh.rotation.y = Math.atan2(-dz, dx);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    var capGeo = new THREE.BoxGeometry(length, 0.12, thickness + 0.1);
+    var capMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.4, emissive: new THREE.Color(color).multiplyScalar(0.35) });
+    var cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.set((p1.x+p2.x)/2, height + 0.06, (p1.z+p2.z)/2);
+    cap.rotation.y = mesh.rotation.y;
+    scene.add(cap);
+    return mesh;
+  }
+
+  // straight run along a fixed row, leaving doorway gaps at the given columns
+  function wallH(row, colA, colB, gapCols, opts){
+    gapCols = gapCols || [];
+    registerBlockedWall(row, colA, colB, gapCols, true);
+    var lo = Math.min(colA, colB), hi = Math.max(colA, colB);
+    var cuts = gapCols.filter(function(g){ return g > lo && g < hi; }).sort(function(a,b){ return a-b; });
+    var cursor = lo;
+    cuts.forEach(function(g){
+      var gs = g - 0.55, ge = g + 0.55;
+      if(gs > cursor) addWall(row, cursor, row, gs, opts);
+      cursor = Math.max(cursor, ge);
+    });
+    if(hi > cursor) addWall(row, cursor, row, hi, opts);
+  }
+
+  // straight run along a fixed column, leaving doorway gaps at the given rows
+  function wallV(col, rowA, rowB, gapRows, opts){
+    gapRows = gapRows || [];
+    registerBlockedWall(col, rowA, rowB, gapRows, false);
+    var lo = Math.min(rowA, rowB), hi = Math.max(rowA, rowB);
+    var cuts = gapRows.filter(function(g){ return g > lo && g < hi; }).sort(function(a,b){ return a-b; });
+    var cursor = lo;
+    cuts.forEach(function(g){
+      var gs = g - 0.55, ge = g + 0.55;
+      if(gs > cursor) addWall(cursor, col, gs, col, opts);
+      cursor = Math.max(cursor, ge);
+    });
+    if(hi > cursor) addWall(cursor, col, hi, col, opts);
+  }
+
+  function addRoomLabel(text, color, row, col){
+    var sprite = makeLabelSprite(text, color, 3.0, 1.5);
+    var p = cellToWorld(row, col);
+    sprite.position.set(p.x, 3.1, p.z);
+    scene.add(sprite);
+  }
+
+  (function buildFloorPlan(){
+    // outer shell — matches the blueprint: full perimeter on three sides, but the
+    // bottom-left corner is an open yard, bounded only by the west wall and a short
+    // notch wall: the two are joined by a painted (non-wall) threshold line on the floor.
+    wallH(-0.5, -0.5, GRID_COLS-0.5, [], {color: WALL_COLOR});               // back (north) wall
+    wallH(GRID_ROWS-0.5, NOTCH_COL, GRID_COLS-0.5, [], {color: WALL_COLOR}); // dock (south) wall, right portion
+    wallV(-0.5, -0.5, GRID_ROWS-0.5, [], {color: WALL_COLOR});               // west wall, full height
+    wallV(GRID_COLS-0.5, -0.5, GRID_ROWS-0.5, [], {color: WALL_COLOR});      // east wall, full height
+    wallV(NOTCH_COL, NOTCH_ROW, GRID_ROWS-0.5, [], {color: DOCK_WALL_COLOR}); // yard notch wall
+
+    addRoomLabel('RACK FARM', '#8fa3c8', RACK_ROW_START-1.6, (RACK_COLS[0]+RACK_COLS[RACK_COLS.length-1])/2);
+    addRoomLabel('SHELF BANK', '#8fa3c8', SHELF_ROWS[0]-1.6, (SHELF_COL_START+SHELF_COL_END)/2);
+    addRoomLabel('SORTER', '#E84FD8', SORTER.rowStart-1.4, (SORTER.colStart+SORTER.colEnd)/2);
+    addRoomLabel('CAROUSEL', '#E5484D', (CAROUSEL.rowStart+CAROUSEL.rowEnd)/2, CAROUSEL.colEnd+2.2);
+    addRoomLabel('OUTBOUND\nCONVEYOR', '#E5484D', (OUTBOUND.rowStart+OUTBOUND.rowEnd)/2, OUTBOUND.colStart-2.4);
+    addRoomLabel('STAGING', '#E5484D', STAGING_RACK.rowStart-1.4, (STAGING_RACK.colStart+STAGING_RACK.colEnd)/2);
+
+    // Cold Storage — a genuinely enclosed, insulated room with one doorway
+    wallH(COLD_ROOM.rowLo, COLD_ROOM.colLo, COLD_ROOM.colHi, [], {color: COLD_WALL_COLOR, height: 2.4});
+    wallH(COLD_ROOM.rowHi, COLD_ROOM.colLo, COLD_ROOM.colHi, [], {color: COLD_WALL_COLOR, height: 2.4});
+    wallV(COLD_ROOM.colLo, COLD_ROOM.rowLo, COLD_ROOM.rowHi, [COLD_ROOM.doorRow], {color: COLD_WALL_COLOR, height: 2.4});
+    wallV(COLD_ROOM.colHi, COLD_ROOM.rowLo, COLD_ROOM.rowHi, [], {color: COLD_WALL_COLOR, height: 2.4});
+    addRoomLabel('COLD STORAGE', '#56CCF2', COLD_ROOM.rowLo-1.2, (COLD_ROOM.colLo+COLD_ROOM.colHi)/2);
+
+    // Hazmat Bay — walled and isolated, its own doorway facing away from the
+    // other destination zones so traffic never has to cut through it
+    wallH(HAZMAT_ROOM.rowLo, HAZMAT_ROOM.colLo, HAZMAT_ROOM.colHi, [], {color: HAZMAT_WALL_COLOR, height: 2.4});
+    wallH(HAZMAT_ROOM.rowHi, HAZMAT_ROOM.colLo, HAZMAT_ROOM.colHi, [HAZMAT_ROOM.doorCol], {color: HAZMAT_WALL_COLOR, height: 2.4});
+    wallV(HAZMAT_ROOM.colLo, HAZMAT_ROOM.rowLo, HAZMAT_ROOM.rowHi, [], {color: HAZMAT_WALL_COLOR, height: 2.4});
+    wallV(HAZMAT_ROOM.colHi, HAZMAT_ROOM.rowLo, HAZMAT_ROOM.rowHi, [], {color: HAZMAT_WALL_COLOR, height: 2.4});
+    addRoomLabel('HAZMAT BAY', '#E5484D', HAZMAT_ROOM.rowLo-1.2, (HAZMAT_ROOM.colLo+HAZMAT_ROOM.colHi)/2);
+
+    // Open-floor destination zones — no walls, just a clearly marked area
+    addRoomLabel('BULK YARD', '#F2A93B', 36.6, 12);
+    addRoomLabel('QC INSPECTION', '#2FD9C4', 19.9, 14);
+    addRoomLabel('ASSEMBLY FEED', '#2FD9C4', 21.9, 33);
+    addRoomLabel('PACKAGING LINE', '#2FD9C4', 31.1, 33);
+    addRoomLabel('GENERAL OVERFLOW', '#2FD9C4', 26, 46);
+    addRoomLabel('EXPORT DOCK', '#2FD9C4', 34.6, 55);
+    addRoomLabel('RETURNS DOCK', '#2FD9C4', 34.6, 21);
+    addRoomLabel('FRAGILE HANDLING', '#2FD9C4', 19.9, 30);
+  })();
+
+  // ---------- rack / shelf / conveyor geometry (per the blueprint) ----------
+  function hexToCss(hex){ return '#' + hex.toString(16).padStart(6,'0'); }
+
+  function buildRackFaceTexture(levels, tiers, hexColor){
+    var cw = Math.max(64, levels*20), ch = Math.max(64, tiers*48);
+    var c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#12141c';
+    ctx.fillRect(0,0,cw,ch);
+    var css = hexToCss(hexColor);
+    for(var t=0;t<tiers;t++){
+      for(var l=0;l<levels;l++){
+        var x = l*(cw/levels), y = t*(ch/tiers), w = cw/levels, h = ch/tiers;
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = css;
+        ctx.fillRect(x+1.5,y+1.5,w-3,h-3);
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = css;
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x+1.5,y+1.5,w-3,h-3);
+      }
+    }
+    ctx.globalAlpha = 1;
+    var tex = new THREE.CanvasTexture(c);
+    return tex;
+  }
+
+  // a rack row: tall, thin, running north-south, with picking faces on both long sides
+  function buildRackRow(col, rowStart, rowEnd, levels, tiers, height, hexColor){
+    var group = new THREE.Group();
+    var p1 = cellToWorld(rowStart, col), p2 = cellToWorld(rowEnd, col);
+    var depth = Math.abs(p2.z - p1.z) + CELL_WORLD*0.8;
+    var width = CELL_WORLD*0.6;
+    var tex = buildRackFaceTexture(levels, tiers, hexColor);
+    var sideMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.2, emissive: hexColor, emissiveIntensity: 0.1 });
+    var frameMat = new THREE.MeshStandardMaterial({ color: 0x232b3a, roughness: 0.5, metalness: 0.5 });
+    var geo = new THREE.BoxGeometry(width, height, depth);
+    var mesh = new THREE.Mesh(geo, [sideMat, sideMat, frameMat, frameMat, frameMat, frameMat]);
+    mesh.position.set((p1.x+p2.x)/2, height/2, (p1.z+p2.z)/2);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    group.add(mesh);
+    var postGeo = new THREE.BoxGeometry(width*1.1, height+0.15, width*1.1);
+    var postMat = new THREE.MeshStandardMaterial({ color: 0x1c2432, roughness: 0.4, metalness: 0.55 });
+    [p1,p2].forEach(function(p){
+      var post = new THREE.Mesh(postGeo, postMat);
+      post.position.set(p.x, height/2, p.z);
+      post.castShadow = true;
+      group.add(post);
+    });
+    scene.add(group);
+    return group;
+  }
+
+  // a shallow shelf unit: short, wide, running east-west, front/back picking faces
+  function buildShelfUnit(row, colStart, colEnd, cells, tiers, height, hexColor){
+    var group = new THREE.Group();
+    var p1 = cellToWorld(row, colStart), p2 = cellToWorld(row, colEnd);
+    var width = Math.abs(p2.x - p1.x) + CELL_WORLD*0.8;
+    var depth = CELL_WORLD*0.6;
+    var tex = buildRackFaceTexture(cells, tiers, hexColor);
+    var faceMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.2, emissive: hexColor, emissiveIntensity: 0.1 });
+    var frameMat = new THREE.MeshStandardMaterial({ color: 0x232b3a, roughness: 0.5, metalness: 0.5 });
+    var geo = new THREE.BoxGeometry(width, height, depth);
+    var mesh = new THREE.Mesh(geo, [frameMat, frameMat, frameMat, frameMat, faceMat, faceMat]);
+    mesh.position.set((p1.x+p2.x)/2, height/2, (p1.z+p2.z)/2);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    group.add(mesh);
+    scene.add(group);
+    return group;
+  }
+
+  RACK_COLS.forEach(function(col, i){
+    var isFlow = i < FLOW_RACK_COUNT;
+    var levels = isFlow ? RACK_LEVELS_FLOW : RACK_LEVELS_PALLET;
+    var height = isFlow ? 3.5 : 3.0;
+    var color = isFlow ? 0x4E9FE0 : 0x5A7FE0;
+    buildRackRow(col, RACK_ROW_START, RACK_ROW_END, levels, isFlow ? 2 : 3, height, color);
+  });
+  SHELF_ROWS.forEach(function(r){
+    buildShelfUnit(r, SHELF_COL_START, SHELF_COL_END, SHELF_CELLS, 2, 2.1, 0x5A7FE0);
+  });
+
+  // conveyor / sorter machinery — a raised, glowing floor pad with roller accents
+  function buildConveyorPad(rowStart, rowEnd, colStart, colEnd, hexColor){
+    var group = new THREE.Group();
+    var p1 = cellToWorld(rowStart, colStart), p2 = cellToWorld(rowEnd, colEnd);
+    var w = Math.abs(p2.x-p1.x) + CELL_WORLD, d = Math.abs(p2.z-p1.z) + CELL_WORLD;
+    var cx = (p1.x+p2.x)/2, cz = (p1.z+p2.z)/2;
+    var padGeo = new THREE.BoxGeometry(w, 0.18, d);
+    var padMat = new THREE.MeshStandardMaterial({ color: hexColor, roughness: 0.5, metalness: 0.35, transparent: true, opacity: 0.26, emissive: hexColor, emissiveIntensity: 0.4 });
+    var pad = new THREE.Mesh(padGeo, padMat);
+    pad.position.set(cx, 0.1, cz);
+    pad.receiveShadow = true;
+    group.add(pad);
+    var edges = new THREE.EdgesGeometry(padGeo);
+    var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: hexColor, transparent: true, opacity: 0.75 }));
+    line.position.copy(pad.position);
+    group.add(line);
+    scene.add(group);
+    return { group: group, w: w, d: d, cx: cx, cz: cz };
+  }
+
+  function addRollers(pad, axis, count, hexColor, y){
+    var group = new THREE.Group();
+    var rMat = new THREE.MeshStandardMaterial({ color: hexColor, roughness: 0.3, metalness: 0.6, emissive: hexColor, emissiveIntensity: 0.55 });
+    for(var i=0;i<count;i++){
+      var t = (i+0.5)/count, geo, mesh;
+      if(axis === 'z'){
+        geo = new THREE.CylinderGeometry(0.08, 0.08, pad.d*0.86, 10);
+        mesh = new THREE.Mesh(geo, rMat);
+        mesh.rotation.x = Math.PI/2;
+        mesh.position.set(pad.cx - pad.w/2 + t*pad.w, y, pad.cz);
+      } else {
+        geo = new THREE.CylinderGeometry(0.08, 0.08, pad.w*0.86, 10);
+        mesh = new THREE.Mesh(geo, rMat);
+        mesh.rotation.z = Math.PI/2;
+        mesh.position.set(pad.cx, y, pad.cz - pad.d/2 + t*pad.d);
+      }
+      group.add(mesh);
+    }
+    scene.add(group);
+    return group;
+  }
+
+  var sorterPad = buildConveyorPad(SORTER.rowStart, SORTER.rowEnd, SORTER.colStart, SORTER.colEnd, MAGENTA_HEX);
+  addRollers(sorterPad, 'x', SORTER_NODE_ROWS.length*2, MAGENTA_HEX, 0.3);
+  var carouselPad = buildConveyorPad(CAROUSEL.rowStart, CAROUSEL.rowEnd, CAROUSEL.colStart, CAROUSEL.colEnd, 0xE5484D);
+  addRollers(carouselPad, 'x', 12, 0xE5484D, 0.3);
+  var outboundPad = buildConveyorPad(OUTBOUND.rowStart, OUTBOUND.rowEnd, OUTBOUND.colStart, OUTBOUND.colEnd, 0xE5484D);
+  addRollers(outboundPad, 'z', OUTBOUND_LANES, 0xE5484D, 0.3);
+
+  // small staging rack, bottom-left yard
+  (function buildStagingRack(){
+    var count = 5;
+    var span = STAGING_RACK.colEnd - STAGING_RACK.colStart;
+    var rowMid = (STAGING_RACK.rowStart + STAGING_RACK.rowEnd) / 2;
+    var depth = (STAGING_RACK.rowEnd - STAGING_RACK.rowStart) * CELL_WORLD * 0.7;
+    for(var i=0;i<count;i++){
+      var col = STAGING_RACK.colStart + span*(i+0.5)/count;
+      var p = cellToWorld(rowMid, col);
+      var geo = new THREE.BoxGeometry(CELL_WORLD*0.45, 1.5, depth);
+      var mat = new THREE.MeshStandardMaterial({ color: 0xE5484D, roughness: 0.5, metalness: 0.25, transparent: true, opacity: 0.24, emissive: 0xE5484D, emissiveIntensity: 0.4 });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(p.x, 0.75, p.z);
+      mesh.castShadow = true;
+      scene.add(mesh);
+    }
+  })();
+
+  // small workstation / charging markers scattered per the blueprint
+  function createWorkstationMarker(row, col, hexColor){
+    var group = new THREE.Group();
+    var geo = new THREE.BoxGeometry(0.55, 0.5, 0.55);
+    var mat = new THREE.MeshStandardMaterial({ color: 0x14181f, roughness: 0.4, metalness: 0.5, emissive: hexColor || 0x333333, emissiveIntensity: 0.4 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 0.25;
+    mesh.castShadow = true;
+    group.add(mesh);
+    var p = cellToWorld(row, col);
+    group.position.set(p.x, 0, p.z);
+    scene.add(group);
+    return group;
+  }
+  SORTER_NODE_ROWS.forEach(function(r){ createWorkstationMarker(r, SORTER.colStart-1, MAGENTA_HEX); });
+  createWorkstationMarker(STAGING_RACK.rowStart-1, STAGING_RACK.colEnd+3, AMBER_HEX);
+  createWorkstationMarker(STAGING_RACK.rowEnd+2, STAGING_RACK.colStart+2, 0x9AA5B4);
+
+  function createDockMarker(row, col, colorHex, label){
+    var group = new THREE.Group();
+    var padGeo = new THREE.CylinderGeometry(0.85, 0.9, 0.12, 20);
+    var padMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4, metalness: 0.35, transparent: true, opacity: 0.7, emissive: colorHex, emissiveIntensity: 0.45 });
+    var pad = new THREE.Mesh(padGeo, padMat);
+    pad.position.y = 0.06;
+    pad.receiveShadow = true;
+    group.add(pad);
+
+    var ringGeo = new THREE.RingGeometry(0.92, 1.06, 28);
+    var ringMat = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+    var ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI/2;
+    ring.position.y = 0.13;
+    group.add(ring);
+
+    var sprite = makeLabelSprite(label, '#0a0e14');
+    sprite.position.y = 1.55;
+    group.add(sprite);
+
+    var p = cellToWorld(row, col);
+    group.position.set(p.x, 0, p.z);
+    scene.add(group);
+    return group;
+  }
+
+  PICKUP_TRACKS.forEach(function(t){ createDockMarker(t.row, t.col, AMBER_HEX, 'T' + t.id + '\n' + t.item); });
+  DISPATCH_BAYS.forEach(function(b){ createDockMarker(b.row, b.col, TEAL_HEX, b.code + '\n' + b.name); });
+
+  // charging section — square pads with a post + bolt icon, distinct from the round dock markers
+  function createChargerMarker(row, col, id){
+    var group = new THREE.Group();
+
+    var padGeo = new THREE.BoxGeometry(1.5, 0.1, 1.5);
+    var padMat = new THREE.MeshStandardMaterial({ color: GREEN_HEX, roughness: 0.4, metalness: 0.35, transparent: true, opacity: 0.7, emissive: GREEN_HEX, emissiveIntensity: 0.45 });
+    var pad = new THREE.Mesh(padGeo, padMat);
+    pad.position.y = 0.05;
+    pad.receiveShadow = true;
+    group.add(pad);
+
+    var edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.5, 0.02, 1.5));
+    var edgesMat = new THREE.LineBasicMaterial({ color: GREEN_HEX, transparent: true, opacity: 0.85 });
+    var edges = new THREE.LineSegments(edgesGeo, edgesMat);
+    edges.position.y = 0.11;
+    group.add(edges);
+
+    var postGeo = new THREE.CylinderGeometry(0.09, 0.09, 1.1, 10);
+    var postMat = new THREE.MeshStandardMaterial({ color: 0x1a222c, roughness: 0.3, metalness: 0.6 });
+    var post = new THREE.Mesh(postGeo, postMat);
+    post.position.set(0.55, 0.6, -0.55);
+    post.castShadow = true;
+    group.add(post);
+
+    var boltGeo = new THREE.ConeGeometry(0.16, 0.42, 4);
+    var boltMat = new THREE.MeshStandardMaterial({ color: GREEN_HEX, emissive: GREEN_HEX, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.3 });
+    var bolt = new THREE.Mesh(boltGeo, boltMat);
+    bolt.rotation.z = Math.PI;
+    bolt.rotation.y = Math.PI/4;
+    bolt.position.set(0.55, 1.28, -0.55);
+    group.add(bolt);
+
+    var sprite = makeLabelSprite('CHG ' + id, '#0a0e14');
+    sprite.position.y = 1.55;
+    group.add(sprite);
+
+    var p = cellToWorld(row, col);
+    group.position.set(p.x, 0, p.z);
+    scene.add(group);
+    return group;
+  }
+  CHARGING_STATIONS.forEach(function(s){ createChargerMarker(s.row, s.col, s.id); });
+  addRoomLabel('CHARGING\nSECTION', '#3DD68C', CHARGING_ZONE.rowStart - 1.2, (CHARGING_ZONE.colStart+CHARGING_ZONE.colEnd)/2);
+
+  var chargeGlow = new THREE.PointLight(GREEN_HEX, 1.0, 45, 2);
+  chargeGlow.position.set(
+    ((CHARGING_ZONE.colStart+CHARGING_ZONE.colEnd)/2 - HALF_COL) * CELL_WORLD,
+    9,
+    ((CHARGING_ZONE.rowStart+CHARGING_ZONE.rowEnd)/2 - HALF_ROW) * CELL_WORLD
+  );
+  scene.add(chargeGlow);
+
+  // Preview / task-runtime ring factory
+  function makeRing(color){
+    var geo = new THREE.RingGeometry(0.55, 0.78, 32);
+    var mat = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.visible = false;
+    scene.add(mesh);
+    return mesh;
+  }
+
+  var taskVisuals = [];
+
+  function makePersistentRing(color, row, col, height){
+    var mesh = makeRing(color);
+    mesh.visible = true;
+    var p = cellToWorld(row, col);
+    mesh.position.set(p.x, height, p.z);
+    taskVisuals.push(mesh);
+    return mesh;
+  }
+
+  function createPackageMesh(){
+    var geo = new THREE.OctahedronGeometry(0.5, 0);
+    var mat = new THREE.MeshStandardMaterial({ color: AMBER_HEX, emissive: 0x8a5410, emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.35 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    taskVisuals.push(mesh);
+    return mesh;
+  }
+
+  var stackCounts = {};
+  function nextStackOffset(key){
+    var idx = stackCounts[key] || 0;
+    stackCounts[key] = idx + 1;
+    if(idx === 0) return { dx: 0, dz: 0 };
+    var angle = idx * 2.399963;
+    var radius = 0.32 + 0.05 * idx;
+    return { dx: Math.cos(angle) * radius, dz: Math.sin(angle) * radius };
+  }
+
+  function clearTaskVisuals(){
+    taskVisuals.forEach(function(m){
+      scene.remove(m);
+      if(m.parent) m.parent.remove(m);
+      if(m.geometry) m.geometry.dispose();
+      if(m.material) m.material.dispose();
+    });
+    taskVisuals = [];
+    stackCounts = {};
+  }
+
+  function removeVisual(mesh){
+    if(!mesh) return;
+    scene.remove(mesh);
+    if(mesh.parent) mesh.parent.remove(mesh);
+    if(mesh.geometry) mesh.geometry.dispose();
+    if(mesh.material) mesh.material.dispose();
+    taskVisuals = taskVisuals.filter(function(m){ return m !== mesh; });
+  }
+
+  function markPathStep(robot, row, col){
+    var p = cellToWorld(row, col);
+    var geo = new THREE.CircleGeometry(0.2, 12);
+    var mat = new THREE.MeshBasicMaterial({ color: robot.colorHex, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.set(p.x, 0.015, p.z);
+    scene.add(mesh);
+    taskVisuals.push(mesh);
+  }
+
+  function numberTexture(num, colorHex){
+    var c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    var ctx = c.getContext('2d');
+    ctx.clearRect(0,0,64,64);
+    ctx.fillStyle = '#0a0e14';
+    ctx.font = '700 40px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(num), 32, 34);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function createRobot(index){
+    var color = ROBOT_COLORS_HEX[index];
+    var group = new THREE.Group();
+
+    var bodyGeo = new THREE.CylinderGeometry(0.68, 0.76, 0.55, 24);
+    var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.35, metalness: 0.4, emissive: color, emissiveIntensity: 0.18 });
+    var body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.3;
+    body.castShadow = true;
+    group.add(body);
+
+    var domeGeo = new THREE.SphereGeometry(0.4, 20, 16, 0, Math.PI*2, 0, Math.PI/2);
+    var domeMat = new THREE.MeshStandardMaterial({ color: 0x1a2432, roughness: 0.2, metalness: 0.65 });
+    var dome = new THREE.Mesh(domeGeo, domeMat);
+    dome.position.y = 0.56;
+    dome.castShadow = true;
+    group.add(dome);
+
+    var haloGeo = new THREE.RingGeometry(0.9, 1.06, 28);
+    var haloMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
+    var halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.rotation.x = -Math.PI/2;
+    halo.position.y = 0.03;
+    group.add(halo);
+
+    var labelMat = new THREE.SpriteMaterial({ map: numberTexture(index+1, color), transparent: true });
+    var label = new THREE.Sprite(labelMat);
+    label.scale.set(0.85, 0.85, 0.85);
+    label.position.y = 1.1;
+    group.add(label);
+
+    scene.add(group);
+    return { body: body, dome: dome, halo: halo, group: group };
+  }
+
+  function randomFreePositions(n){
+    var used = {};
+    var out = [];
+    var guard = 0;
+    // keep spawns on the open aisle floor between the rack farm and the outbound conveyor
+    var rowLo = RACK_ROW_END + 1, rowHi = OUTBOUND.rowStart - 1;
+    while(out.length < n && guard < 8000){
+      guard++;
+      var row = rowLo + Math.floor(Math.random()*(rowHi-rowLo+1));
+      var col = Math.floor(Math.random()*GRID_COLS);
+      var key = row+'_'+col;
+      if(used[key] || RESERVED_CELLS[key] || BLOCKED_CELLS[key]) continue;
+      used[key] = true;
+      out.push({row:row, col:col});
+    }
+    return out;
+  }
+
+  // nearest open cell to a target point, searching outward ring by ring —
+  // used to plant each robot as close as possible to its home pickup track
+  function nearestFreeCellTo(target, used){
+    for(var radius=0; radius<=25; radius++){
+      for(var dr=-radius; dr<=radius; dr++){
+        for(var dc=-radius; dc<=radius; dc++){
+          if(Math.max(Math.abs(dr), Math.abs(dc)) !== radius) continue; // only the outer ring at this radius
+          var nr = target.row + dr, nc = target.col + dc;
+          if(nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+          var key = nr+'_'+nc;
+          if(used[key] || RESERVED_CELLS[key] || BLOCKED_CELLS[key]) continue;
+          return { row: nr, col: nc };
+        }
+      }
+    }
+    return null;
+  }
+
+  // start the fleet parked right at the pickup tracks instead of scattered
+  // randomly across the floor — with one robot per track (fleet size matches
+  // track count) every job starts with its nearest robot already on hand
+  function positionsNearTracks(n){
+    var used = {};
+    var out = [];
+    for(var i=0;i<n;i++){
+      var track = PICKUP_TRACKS[i % PICKUP_TRACKS.length];
+      var spot = nearestFreeCellTo(track, used) ||
+                 nearestFreeCellTo({ row: RACK_ROW_END + 1, col: Math.floor(GRID_COLS/2) }, used);
+      if(!spot) continue;
+      used[spot.row+'_'+spot.col] = true;
+      out.push(spot);
+    }
+    return out;
+  }
+
+  function initRobots(){
+    robots.forEach(function(r){ scene.remove(r.mesh.group); });
+    robots = [];
+    reservationTable = {};
+    conflictsResolved = 0;
+    simClockStart = performance.now();
+    renderReservationTable();
+    var positions = positionsNearTracks(ROBOT_COUNT);
+    for(var i=0;i<ROBOT_COUNT;i++){
+      var pos = positions[i];
+      var mesh = createRobot(i);
+      var p = cellToWorld(pos.row, pos.col);
+      mesh.group.position.set(p.x, 0, p.z);
+      robots.push({
+        id: i+1,
+        colorCss: ROBOT_COLORS_CSS[i],
+        colorHex: ROBOT_COLORS_HEX[i],
+        row: pos.row, col: pos.col,
+        status: 'idle',
+        targetTrackId: null,
+        targetChargerId: null,
+        battery: 78 + Math.round(Math.random()*22),
+        tripCount: 0,
+        distanceM: 0,
+        model: ROBOT_SPECS[i % ROBOT_SPECS.length].model,
+        payloadKg: ROBOT_SPECS[i % ROBOT_SPECS.length].payloadKg,
+        topSpeed: ROBOT_SPECS[i % ROBOT_SPECS.length].topSpeed,
+        mesh: mesh,
+        prevWorld: p, nextWorld: p, stepStart: 0,
+        targetAngle: 0,
+        enRoute: false,
+        nextReservedCell: null
+      });
+    }
+    renderRoster();
+  }
+
+  // ---------- Orbit camera controls ----------
+  // Left-drag orbits around the current target. Right-drag (or shift+left-drag)
+  // pans that target freely across the floor. Scroll zooms toward wherever the
+  // target currently is — not a fixed point — so zoom always follows the view.
+  // A plain click (no drag) flies the target to that spot on the floor, so you
+  // can jump straight to any zone and watch activity there up close.
+  var isDown = false, isDraggingReal = false, dragButton = 0, lastX = 0, lastY = 0, downX = 0, downY = 0;
+  var raycaster = new THREE.Raycaster();
+  var mouseNdc = new THREE.Vector2();
+
+  function updateCamera(){
+    var x = orbit.target.x + orbit.radius * Math.sin(orbit.polar) * Math.sin(orbit.azimuth);
+    var z = orbit.target.z + orbit.radius * Math.sin(orbit.polar) * Math.cos(orbit.azimuth);
+    var y = orbit.radius * Math.cos(orbit.polar);
+    camera.position.set(x, y, z);
+    camera.lookAt(orbit.target.x, 1, orbit.target.z);
+  }
+
+  function panCamera(dxScreen, dyScreen){
+    var speed = orbit.radius * 0.0028;
+    var sinA = Math.sin(orbit.azimuth), cosA = Math.cos(orbit.azimuth);
+    var rightX = cosA, rightZ = -sinA;
+    var fwdX = -sinA, fwdZ = -cosA;
+    orbit.target.x += (-dxScreen*rightX + dyScreen*fwdX) * speed;
+    orbit.target.z += (-dxScreen*rightZ + dyScreen*fwdZ) * speed;
+    orbit.targetGoal.x = orbit.target.x;
+    orbit.targetGoal.z = orbit.target.z;
+  }
+
+  function flyToFloorPoint(clientX, clientY){
+    var rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouseNdc, camera);
+    var hit = raycaster.intersectObject(floorMesh)[0];
+    if(!hit) return;
+    orbit.targetGoal.x = hit.point.x;
+    orbit.targetGoal.z = hit.point.z;
+    orbit.radiusGoal = Math.min(orbit.radius, 46);
+  }
+
+  renderer.domElement.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  renderer.domElement.addEventListener('mousedown', function(e){
+    isDown = true; isDraggingReal = false;
+    dragButton = e.button;
+    lastX = downX = e.clientX; lastY = downY = e.clientY;
+    stageWrap.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!isDown) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    if(Math.abs(e.clientX-downX) > 4 || Math.abs(e.clientY-downY) > 4) isDraggingReal = true;
+    if(isDraggingReal){
+      var panning = dragButton === 2 || e.shiftKey;
+      if(panning){
+        panCamera(dx, dy);
+      } else {
+        orbit.azimuth -= dx * 0.006;
+        orbit.polar = Math.max(0.25, Math.min(1.45, orbit.polar - dy * 0.006));
+      }
+    }
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  window.addEventListener('mouseup', function(e){
+    if(isDown && !isDraggingReal && dragButton === 0){
+      flyToFloorPoint(e.clientX, e.clientY);
+    }
+    isDown = false;
+    stageWrap.classList.remove('dragging');
+  });
+  renderer.domElement.addEventListener('wheel', function(e){
+    e.preventDefault();
+    orbit.radiusGoal = Math.max(14, Math.min(260, orbit.radiusGoal + e.deltaY * 0.08));
+    orbit.radius = orbit.radiusGoal;
+  }, { passive: false });
+
+  // ---------- side panel logic (roster, log, staging) ----------
+  function conditionOf(r){
+    if(r.status === 'charging') return { label: 'Charging', cls: 'cond-charge' };
+    if(r.battery <= 15) return { label: 'Critical', cls: 'cond-crit' };
+    if(r.battery <= LOW_BATTERY_THRESHOLD) return { label: 'Low battery', cls: 'cond-low' };
+    if(r.battery <= 60) return { label: 'Fair', cls: 'cond-fair' };
+    return { label: 'Nominal', cls: 'cond-ok' };
+  }
+
+  function renderRoster(){
+    rosterEl.innerHTML = '';
+    robots.forEach(function(r){
+      var row = document.createElement('div'); row.className = 'roster-row';
+      var dot = document.createElement('div'); dot.className = 'dot';
+      dot.style.background = r.colorCss; dot.textContent = r.id;
+      var name = document.createElement('div'); name.className = 'rname'; name.textContent = 'Robot ' + r.id;
+      var status = document.createElement('div'); status.className = 'rstatus ' + r.status;
+      status.textContent = r.status === 'idle' ? 'idle' : (r.status === 'charging' ? 'charging' : 'en route');
+      var pos = document.createElement('div'); pos.className = 'rpos';
+      pos.textContent = '(' + r.row + ',' + r.col + ')';
+      row.appendChild(dot); row.appendChild(name); row.appendChild(status); row.appendChild(pos);
+      rosterEl.appendChild(row);
+    });
+
+    if(!specsTbody) return;
+    specsTbody.innerHTML = '';
+    robots.forEach(function(r){
+      var tr = document.createElement('tr');
+
+      var tdId = document.createElement('td');
+      var chip = document.createElement('span'); chip.className = 'spec-dot'; chip.style.background = r.colorCss;
+      tdId.appendChild(chip);
+      tdId.appendChild(document.createTextNode(' R' + r.id));
+
+      var tdModel = document.createElement('td'); tdModel.textContent = r.model;
+      tdModel.title = r.payloadKg + ' kg payload · ' + r.topSpeed + ' m/s top speed';
+
+      var tdBattery = document.createElement('td');
+      var barWrap = document.createElement('div'); barWrap.className = 'batt-wrap';
+      var bar = document.createElement('div'); bar.className = 'batt-bar';
+      bar.style.width = Math.max(2, r.battery) + '%';
+      bar.style.background = r.battery <= 15 ? 'var(--danger)' : (r.battery <= LOW_BATTERY_THRESHOLD ? 'var(--amber)' : 'var(--success)');
+      barWrap.appendChild(bar);
+      var battLabel = document.createElement('span'); battLabel.className = 'batt-label'; battLabel.textContent = Math.round(r.battery) + '%';
+      tdBattery.appendChild(barWrap); tdBattery.appendChild(battLabel);
+
+      var tdStatus = document.createElement('td');
+      tdStatus.textContent = r.status === 'idle' ? 'Idle' : (r.status === 'charging' ? 'Charging' : 'En route');
+
+      var cond = conditionOf(r);
+      var tdCond = document.createElement('td');
+      var condBadge = document.createElement('span'); condBadge.className = 'cond-badge ' + cond.cls; condBadge.textContent = cond.label;
+      tdCond.appendChild(condBadge);
+
+      var tdTrips = document.createElement('td'); tdTrips.textContent = r.tripCount;
+      var tdDist = document.createElement('td'); tdDist.textContent = Math.round(r.distanceM) + ' m';
+
+      [tdId, tdModel, tdBattery, tdStatus, tdCond, tdTrips, tdDist].forEach(function(td){ tr.appendChild(td); });
+      specsTbody.appendChild(tr);
+    });
+  }
+
+  function log(text, cls){
+    var entry = document.createElement('div');
+    entry.className = 'log-entry' + (cls ? ' '+cls : '');
+    var now = new Date();
+    var ts = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+    entry.innerHTML = '<span class="t">['+ts+']</span> ' + text;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // ---------- grid logic: nearest robot, collision-aware pathing ----------
+  function manhattan(a, b){ return Math.abs(a.row-b.row) + Math.abs(a.col-b.col); }
+  function delay(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+  // ---------- time-space A* pathfinding (Manhattan heuristic + reservation table) ----------
+  // Robots search (row, col, tick) states instead of just (row, col). Every
+  // candidate move — including "wait in place" — is checked against the shared
+  // reservation table (built from every other en-route robot's own committed
+  // plan), so a route is only ever accepted if it doesn't collide or swap cells
+  // with anyone else's route. That's what stops the deadlocks/traffic jams the
+  // old plain-BFS + reactive-wait approach could get stuck in.
+  function aStarPath(robot, start, target){
+    var t0 = currentTick();
+    if(start.row === target.row && start.col === target.col) return { path: [], t0: t0 };
+
+    var HORIZON = 90;       // ticks of lookahead before giving up this attempt
+    var MAX_EXPANSIONS = 20000;
+    var blockingIdle = {};  // ids of idle/parked robots whose static position blocked a candidate cell — nudge candidates if the search fails
+
+    function blockedStatic(r, c){ return BLOCKED_CELLS[r+'_'+c]; }
+    function blockedAt(t, r, c){
+      var occ = reservedBy(t, r, c);
+      if(occ !== undefined) return occ !== robot.id;
+      // no one has this cell booked in the table — but a robot that isn't
+      // currently executing a route (idle/charging/queued) won't show up in
+      // the table at all, so treat its live position as occupied too.
+      for(var i=0;i<robots.length;i++){
+        var o = robots[i];
+        if(o.id !== robot.id && !o.enRoute && o.row === r && o.col === c){
+          if(o.status === 'idle') blockingIdle[o.id] = true;
+          return true;
+        }
+      }
+      return false;
+    }
+    function swapConflict(t, r1, c1, r2, c2){
+      // head-on check: would some other robot be sitting in our target cell
+      // (r2,c2) right now, and reserve our current cell (r1,c1) on the very
+      // next tick? That's the other robot doing the exact opposite move at
+      // the same moment — the two would swap places and visually pass
+      // straight through each other. Reject the move so the planner instead
+      // has this robot wait a tick or take a different cell.
+      var a = reservedBy(t, r2, c2), b = reservedBy(t+1, r1, c1);
+      return a !== undefined && a === b;
+    }
+
+    function key(r,c,t){ return r+'_'+c+'_'+t; }
+    var startKey = key(start.row, start.col, t0);
+    var open = [{ row:start.row, col:start.col, t:t0, g:0, f: manhattan(start,target) }];
+    var cameFrom = {};
+    var gScore = {}; gScore[startKey] = 0;
+    var visited = {};
+    var dirs = [[0,0],[1,0],[-1,0],[0,1],[0,-1]]; // [0,0] = wait a tick in place
+    var expansions = 0;
+    var localConflicts = 0;
+
+    while(open.length){
+      expansions++;
+      if(expansions > MAX_EXPANSIONS){ conflictsResolved += localConflicts; return { path: null, blockers: Object.keys(blockingIdle).map(Number) }; }
+      var bi = 0;
+      for(var i=1;i<open.length;i++) if(open[i].f < open[bi].f) bi = i;
+      var cur = open.splice(bi,1)[0];
+      var ck = key(cur.row, cur.col, cur.t);
+      if(visited[ck]) continue;
+      visited[ck] = true;
+
+      if(cur.row === target.row && cur.col === target.col){
+        var path = [];
+        var k = ck;
+        while(cameFrom[k]){
+          var node = cameFrom[k];
+          path.push({ row: node.toRow, col: node.toCol, t: node.toT, waited: node.waited });
+          k = node.fromKey;
+        }
+        path.reverse();
+        conflictsResolved += localConflicts;
+        return { path: path, t0: t0 };
+      }
+      if(cur.t - t0 > HORIZON) continue;
+
+      for(var d=0; d<dirs.length; d++){
+        var isWait = dirs[d][0] === 0 && dirs[d][1] === 0;
+        var nr = cur.row + dirs[d][0], nc = cur.col + dirs[d][1];
+        var nt = cur.t + 1;
+        if(!isWait){
+          if(nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+          if(blockedStatic(nr, nc)) continue;
+          if(isEdgeBlocked(cur.row, cur.col, nr, nc)) continue; // a wall runs between these two cells
+        }
+        if(blockedAt(nt, nr, nc)){ localConflicts++; continue; }
+        if(!isWait && swapConflict(cur.t, cur.row, cur.col, nr, nc)){ localConflicts++; continue; }
+        var nk = key(nr, nc, nt);
+        if(visited[nk]) continue;
+        var ng = cur.g + 1;
+        if(gScore[nk] !== undefined && ng >= gScore[nk]) continue;
+        gScore[nk] = ng;
+        cameFrom[nk] = { fromKey: ck, toRow: nr, toCol: nc, toT: nt, waited: isWait };
+        open.push({ row: nr, col: nc, t: nt, g: ng, f: ng + manhattan({row:nr,col:nc}, target) });
+      }
+    }
+    conflictsResolved += localConflicts;
+    return { path: null, blockers: Object.keys(blockingIdle).map(Number) }; // no route found inside the horizon — caller retries shortly, nudging any idle robots that were in the way
+  }
+
+  function stepRobotTo(robot, cell){
+    robot.prevCell = { row: robot.row, col: robot.col };
+    var prevPos = cellToWorld(robot.row, robot.col);
+    robot.row = cell.row; robot.col = cell.col;
+    var nextPos = cellToWorld(robot.row, robot.col);
+    robot.prevWorld = prevPos; robot.nextWorld = nextPos; robot.stepStart = performance.now();
+    var dx = nextPos.x - prevPos.x, dz = nextPos.z - prevPos.z;
+    if(dx !== 0 || dz !== 0) robot.targetAngle = Math.atan2(dx, dz);
+    markPathStep(robot, robot.row, robot.col);
+    if(robot.status !== 'charging'){
+      robot.battery = Math.max(0, robot.battery - BATTERY_DRAIN_PER_STEP);
+      robot.distanceM += CELL_WORLD;
+    }
+    renderRoster();
+  }
+
+  function findNearestVacantTrack(fromCell, excludeRobot){
+    var candidates = PICKUP_TRACKS.filter(function(t){
+      if(occupantAt(t.row, t.col, excludeRobot)) return false;
+      for(var i=0;i<robots.length;i++){
+        var r = robots[i];
+        if(r !== excludeRobot && r.targetTrackId === t.id) return false;
+      }
+      return true;
+    });
+    if(candidates.length === 0) return null;
+    candidates.sort(function(a,b){
+      var da = manhattan(fromCell, { row: a.row, col: a.col });
+      var db = manhattan(fromCell, { row: b.row, col: b.col });
+      if(da !== db) return da - db;
+      return a.id - b.id;
+    });
+    return candidates[0];
+  }
+  function findNearestFreeCell(robot){
+    var dirs = [{r:0,c:1},{r:0,c:-1},{r:1,c:0},{r:-1,c:0},{r:1,c:1},{r:1,c:-1},{r:-1,c:1},{r:-1,c:-1}];
+    for(var i=0;i<dirs.length;i++){
+      var nr = robot.row + dirs[i].r, nc = robot.col + dirs[i].c;
+      if(nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS || BLOCKED_CELLS[nr+'_'+nc]) continue;
+      if(isEdgeBlocked(robot.row, robot.col, nr, nc)) continue; // don't nudge a robot through a wall
+      var occupied = false;
+      for(var j=0;j<robots.length;j++){
+        var o = robots[j];
+        if(o !== robot && o.row === nr && o.col === nc){ occupied = true; break; }
+      }
+      if(!occupied) return { row: nr, col: nc };
+    }
+    return null;
+  }
+
+  function occupantAt(row, col, exclude){
+    for(var i=0;i<robots.length;i++){
+      var o = robots[i];
+      if(o !== exclude && o.row === row && o.col === col) return o;
+    }
+    return null;
+  }
+
+  async function nudgeAside(occupant, myToken){
+    if(occupant.status !== 'idle') return;
+    var spot = findNearestFreeCell(occupant);
+    if(!spot) return;
+    occupant.status = 'busy';
+    stepRobotTo(occupant, spot);
+    log('Robot ' + occupant.id + ' steps aside to make room', 'yield');
+    await delay(STEP_MS);
+    if(myToken === resetToken && occupant.status === 'busy'){
+      occupant.status = 'idle';
+      occupant.mesh.halo.material.opacity = 0.15;
+      renderRoster();
+    }
+  }
+
+  async function moveRobotTo(robot, target, myToken){
+    var result = null;
+    var attempts = 0;
+    while(attempts < 25){
+      result = aStarPath(robot, { row: robot.row, col: robot.col }, target);
+      if(result.path) break;
+      attempts++;
+      if(attempts === 3){
+        log('Robot ' + robot.id + ' waiting for a clear route near (' + robot.row + ',' + robot.col + ')', 'yield');
+      }
+      // a route couldn't be found — if an idle, parked robot was sitting in
+      // the way (and not just other en-route traffic), nudge it clear so it
+      // stops acting as a permanent roadblock, then retry right away instead
+      // of burning the whole wait window.
+      if(result.blockers && result.blockers.length){
+        for(var bi=0; bi<result.blockers.length; bi++){
+          var blockerId = result.blockers[bi];
+          if(blockerId === robot.id) continue;
+          var blocker = robots.filter(function(r){ return r.id === blockerId; })[0];
+          if(blocker) await nudgeAside(blocker, myToken);
+        }
+        if(myToken !== resetToken) return false;
+        continue;
+      }
+      await delay(STEP_MS);
+      if(myToken !== resetToken) return false;
+    }
+    if(!result.path){
+      log('Robot ' + robot.id + ' found no route to (' + target.row + ',' + target.col + ') after repeated attempts', 'yield');
+      return false;
+    }
+    if(result.path.length === 0) return true; // already there
+
+    // commit this route to the shared reservation table so every other robot's
+    // planner treats these cell/tick pairs as booked
+    clearReservationsFor(robot.id);
+    reserveCell(result.t0, robot.row, robot.col, robot.id);
+    for(var p=0;p<result.path.length;p++){
+      reserveCell(result.path[p].t, result.path[p].row, result.path[p].col, robot.id);
+    }
+    robot.enRoute = true;
+    robot.nextReservedCell = result.path[0];
+    renderReservationTable();
+
+    for(var i=0;i<result.path.length;i++){
+      if(myToken !== resetToken){ robot.enRoute = false; return false; }
+      var step = result.path[i];
+      if(step.waited){
+        await delay(STEP_MS); // holding position — the cell is still ours in the table
+      } else {
+        stepRobotTo(robot, step);
+        await delay(STEP_MS);
+      }
+      robot.nextReservedCell = result.path[i+1] || null;
+      if(i % 2 === 0) renderReservationTable();
+      if(myToken !== resetToken){ robot.enRoute = false; return false; }
+    }
+    robot.enRoute = false;
+    robot.nextReservedCell = null;
+    clearReservationsFor(robot.id);
+    renderReservationTable();
+    return true;
+  }
+
+  function findNearestIdleRobot(fromCell){
+    var candidates = robots.filter(function(r){ return r.status === 'idle' && r.battery > MIN_OPERATE_BATTERY; });
+    if(candidates.length === 0) return null;
+    candidates.sort(function(a,b){
+      var da = manhattan(a, fromCell), db = manhattan(b, fromCell);
+      if(da !== db) return da - db;
+      return a.id - b.id;
+    });
+    return candidates[0];
+  }
+
+  function findNearestVacantCharger(fromCell, excludeRobot){
+    var candidates = CHARGING_STATIONS.filter(function(s){
+      if(occupantAt(s.row, s.col, excludeRobot)) return false;
+      for(var i=0;i<robots.length;i++){
+        var r = robots[i];
+        if(r !== excludeRobot && r.targetChargerId === s.id) return false;
+      }
+      return true;
+    });
+    if(candidates.length === 0) return null;
+    candidates.sort(function(a,b){
+      var da = manhattan(fromCell, { row: a.row, col: a.col });
+      var db = manhattan(fromCell, { row: b.row, col: b.col });
+      if(da !== db) return da - db;
+      return a.id - b.id;
+    });
+    return candidates[0];
+  }
+
+  // after finishing a task (or a charge cycle), a robot either grabs the next
+  // queued job or heads back to the nearest open track to wait
+  async function settleRobot(robot, myToken){
+    if(myToken !== resetToken) return;
+    if(pendingQueue.length > 0){
+      var next = pendingQueue.shift();
+      runTask(next, myToken);
+      return;
+    }
+    await delay(450);
+    if(myToken !== resetToken) return;
+    if(robot.status !== 'idle') return;
+    var nearestTrack = findNearestVacantTrack(robot, robot);
+    if(nearestTrack){
+      robot.status = 'busy';
+      robot.targetTrackId = nearestTrack.id;
+      robot.mesh.halo.material.opacity = 0.15;
+      log('Robot ' + robot.id + ' heading back to nearest vacant Track ' + nearestTrack.id, 'yield');
+      renderRoster();
+      var okReturn = await moveRobotTo(robot, { row: nearestTrack.row, col: nearestTrack.col }, myToken);
+      if(myToken !== resetToken) return;
+      robot.targetTrackId = null;
+      if(robot.status === 'busy'){
+        robot.status = 'idle';
+        robot.mesh.halo.material.opacity = 0.15;
+        renderRoster();
+      }
+    }
+  }
+
+  async function chargeRobot(robot, myToken){
+    if(robot.status !== 'idle') return; // already busy, en route, or already charging/heading to charge
+    // claim the robot immediately so it can't be picked up for a new task, and
+    // so the battery sentinel doesn't fire on it again, while we look for a charger
+    robot.status = 'busy';
+    robot.mesh.halo.material.opacity = 0.15;
+    renderRoster();
+
+    var charger = findNearestVacantCharger(robot, robot);
+    var waitTries = 0;
+    while(!charger && waitTries < 40){
+      await delay(500);
+      waitTries++;
+      if(myToken !== resetToken) return;
+      charger = findNearestVacantCharger(robot, robot);
+    }
+    if(myToken !== resetToken) return;
+    if(!charger){
+      // every charger stayed occupied — release the robot back to idle rather
+      // than leaving it parked as a permanent 'busy' roadblock; the sentinel
+      // will retry it again shortly.
+      log('Robot ' + robot.id + ' found every charger occupied — will retry shortly', 'yield');
+      robot.status = 'idle';
+      renderRoster();
+      return;
+    }
+
+    robot.targetChargerId = charger.id;
+    log('Robot ' + robot.id + ' battery at ' + Math.round(robot.battery) + '% — heading to Charger ' + charger.id, 'charge');
+    renderRoster();
+
+    var ok = await moveRobotTo(robot, { row: charger.row, col: charger.col }, myToken);
+    if(myToken !== resetToken) return;
+    robot.targetChargerId = null;
+    if(!ok){
+      // couldn't reach the charger this time (route genuinely blocked) — go
+      // back to idle instead of staying stuck 'busy' in place; the sentinel
+      // will send it again once a route opens up.
+      log('Robot ' + robot.id + ' could not reach a charger — will retry shortly', 'yield');
+      robot.status = 'idle';
+      robot.mesh.halo.material.opacity = 0.15;
+      renderRoster();
+      return;
+    }
+
+    robot.status = 'charging';
+    robot.mesh.halo.material.opacity = 0.6;
+    renderRoster();
+    log('Robot ' + robot.id + ' docked at Charger ' + charger.id + ' — charging', 'charge');
+
+    while(robot.battery < CHARGE_TARGET && myToken === resetToken && robot.status === 'charging'){
+      await delay(280);
+      robot.battery = Math.min(100, robot.battery + CHARGE_RATE_PER_TICK);
+      renderRoster();
+    }
+    if(myToken !== resetToken) return;
+    if(robot.status === 'charging'){
+      robot.status = 'idle';
+      robot.mesh.halo.material.opacity = 0.15;
+      renderRoster();
+      log('Robot ' + robot.id + ' fully charged (' + Math.round(robot.battery) + '%) — back in service', 'charge');
+    }
+    await settleRobot(robot, myToken);
+  }
+
+  async function runTask(task, myToken){
+    var robot = findNearestIdleRobot(task.from);
+    if(!robot){
+      pendingQueue.push(task);
+      log('No idle robot available — ' + task.originLabel + ' (' + task.item + ') queued for ' + task.destName + ' (' + task.destCode + ')', 'queue');
+      return;
+    }
+
+    robot.status = 'busy';
+    robot.mesh.halo.material.opacity = 0.55;
+    renderRoster();
+    log('Robot ' + robot.id + ' dispatched for ' + task.item + ' — heading to ' + task.originLabel, 'dispatch');
+
+    var pickupRing = makePersistentRing(AMBER_HEX, task.from.row, task.from.col, 0.045);
+    var dropRing = makePersistentRing(TEAL_HEX, task.to.row, task.to.col, 0.05);
+
+    var pFrom = cellToWorld(task.from.row, task.from.col);
+    var waitOffset = nextStackOffset('from_' + task.from.row + '_' + task.from.col);
+    var item = createPackageMesh();
+    item.position.set(pFrom.x + waitOffset.dx, 0.55, pFrom.z + waitOffset.dz);
+
+    var ok1 = await moveRobotTo(robot, task.from, myToken);
+    if(myToken !== resetToken) return;
+    if(!ok1){
+      // couldn't reach the pickup this time — don't strand the robot 'busy'
+      // wherever it happens to be (that's exactly what turns it into a fixed,
+      // unreachable roadblock). Release it back to idle and put the task back
+      // on the queue so it gets retried once the route clears.
+      removeVisual(pickupRing);
+      removeVisual(dropRing);
+      pendingQueue.unshift(task);
+      log('Robot ' + robot.id + ' could not reach ' + task.originLabel + ' — task re-queued, robot released', 'yield');
+      robot.status = 'idle';
+      robot.mesh.halo.material.opacity = 0.15;
+      renderRoster();
+      await settleRobot(robot, myToken);
+      return;
+    }
+
+    log('Robot ' + robot.id + ' picked up ' + task.item + ' at ' + task.originLabel, 'pickup');
+    removeVisual(pickupRing);
+    robot.mesh.group.add(item);
+    item.position.set(0, 1.05, 0);
+
+    var ok2 = await moveRobotTo(robot, task.to, myToken);
+    if(myToken !== resetToken) return;
+    if(!ok2){
+      // already holding the item — can't requeue this as a fresh pickup, so
+      // keep the robot committed to finishing the delivery instead of
+      // abandoning it mid-route. Rest briefly and retry until the route to
+      // the drop-off opens up, rather than freezing in place forever.
+      log('Robot ' + robot.id + ' blocked en route to ' + task.destName + ' — retrying delivery', 'yield');
+      await delay(STEP_MS * 4);
+      if(myToken !== resetToken) return;
+      ok2 = await moveRobotTo(robot, task.to, myToken);
+      if(myToken !== resetToken) return;
+      while(!ok2){
+        await delay(STEP_MS * 4);
+        if(myToken !== resetToken) return;
+        ok2 = await moveRobotTo(robot, task.to, myToken);
+        if(myToken !== resetToken) return;
+      }
+    }
+
+    var pTo = cellToWorld(task.to.row, task.to.col);
+    var dropOffset = nextStackOffset('to_' + task.to.row + '_' + task.to.col);
+    scene.add(item);
+    item.position.set(pTo.x + dropOffset.dx, 0.5, pTo.z + dropOffset.dz);
+    removeVisual(dropRing);
+    robot.tripCount++;
+    log('Robot ' + robot.id + ' delivered ' + task.item + ' to ' + task.destName + ' (' + task.destCode + ')', 'deliver');
+
+    robot.status = 'idle';
+    robot.mesh.halo.material.opacity = 0.15;
+    renderRoster();
+
+    if(robot.battery <= LOW_BATTERY_THRESHOLD){
+      chargeRobot(robot, myToken);
+      return;
+    }
+    await settleRobot(robot, myToken);
+  }
+
+  function dispatchTaskFromTrackBay(trackId, bayId, label){
+    var track = PICKUP_TRACKS[trackId - 1];
+    var bay = DISPATCH_BAYS[bayId - 1];
+    taskIdCounter++;
+    var task = {
+      id: taskIdCounter,
+      trackId: track.id, bayId: bay.id,
+      item: track.item,
+      originLabel: 'Track ' + track.id,
+      destCode: bay.code, destName: bay.name,
+      from: { row: track.row, col: track.col },
+      to: { row: bay.row, col: bay.col },
+      label: label || ''
+    };
+    runTask(task, resetToken);
+    return track;
+  }
+
+  // moves stock between two destinations directly — e.g. shifting overflow
+  // from the Bulk Yard into Cold Storage, or pulling something back out of
+  // QC into Packaging — instead of only ever starting from a pickup track
+  function dispatchRelocationTask(sourceBayId, destBayId){
+    var source = DISPATCH_BAYS[sourceBayId - 1];
+    var dest = DISPATCH_BAYS[destBayId - 1];
+    taskIdCounter++;
+    var task = {
+      id: taskIdCounter,
+      trackId: null, bayId: dest.id, sourceBayId: source.id,
+      item: source.name + ' stock',
+      originLabel: source.name + ' (' + source.code + ')',
+      destCode: dest.code, destName: dest.name,
+      from: { row: source.row, col: source.col },
+      to: { row: dest.row, col: dest.col },
+      label: ''
+    };
+    runTask(task, resetToken);
+    return source;
+  }
+
+  resetBtn.addEventListener('click', function(){
+    resetToken++;
+    pendingQueue = [];
+    clearTaskVisuals();
+    logEl.innerHTML = '';
+    initRobots();
+    log('Simulation reset — fleet redeployed to new positions.', 'dispatch');
+  });
+
+  // ---------- command console ----------
+  function consoleRow(cmd, result, ok){
+    var tr = document.createElement('tr');
+    var now = new Date();
+    var ts = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+    var tdT = document.createElement('td'); tdT.textContent = ts;
+    var tdC = document.createElement('td'); tdC.textContent = cmd;
+    var tdR = document.createElement('td'); tdR.textContent = result; tdR.className = ok ? 'ok' : 'err';
+    tr.appendChild(tdT); tr.appendChild(tdC); tr.appendChild(tdR);
+    consoleTbody.appendChild(tr);
+    var wrap = consoleTbody.closest('.console-table-wrap');
+    if(wrap) wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function runCommand(trackRaw, bayRaw){
+    var trackStr = (trackRaw || '').trim();
+    var bayStr = (bayRaw || '').trim();
+    var cmdLabel = (trackStr || '—') + (bayStr ? ' / ' + bayStr : '');
+    if(!trackStr){
+      consoleRow(cmdLabel, 'enter a track (number/item) to pick up, or a destination code/name to move stock onward from', false);
+      return;
+    }
+
+    var track = null;
+    var sourceBay = null;
+    if(/^\d+$/.test(trackStr)){
+      var tid = +trackStr;
+      if(tid >= 1 && tid <= PICKUP_TRACKS.length) track = PICKUP_TRACKS[tid - 1];
+    } else {
+      var needle = trackStr.toLowerCase();
+      for(var i=0;i<PICKUP_TRACKS.length;i++){
+        if(PICKUP_TRACKS[i].item.toLowerCase().indexOf(needle) !== -1){ track = PICKUP_TRACKS[i]; break; }
+      }
+      // no matching pickup track — see if they named a destination instead,
+      // meaning they want to relocate stock that's already sitting there
+      if(!track) sourceBay = findDestination(trackStr);
+    }
+    if(!track && !sourceBay){
+      consoleRow(cmdLabel, 'no matching track or destination — use 1-' + PICKUP_TRACKS.length + ', an item name, or a destination code/name to relocate stock', false);
+      return;
+    }
+
+    var dest = null;
+    if(bayStr){
+      dest = findDestination(bayStr);
+      if(!dest){
+        consoleRow(cmdLabel, 'no matching destination — use a code (e.g. ' + DISPATCH_BAYS[0].code + '), a name, or 1-' + DISPATCH_BAYS.length, false);
+        return;
+      }
+    } else if(track){
+      dest = defaultDestinationFor(track);
+    } else {
+      consoleRow(cmdLabel, 'give a destination to move ' + sourceBay.name + ' stock to', false);
+      return;
+    }
+
+    if(sourceBay && dest.id === sourceBay.id){
+      consoleRow(cmdLabel, sourceBay.name + ' is already the destination — pick a different one to relocate to', false);
+      return;
+    }
+
+    if(track){
+      dispatchTaskFromTrackBay(track.id, dest.id, '');
+      consoleRow('T' + track.id + ' / ' + dest.code, 'moving Track ' + track.id + ' (' + track.item + ') \u2192 ' + dest.name + ' (' + dest.code + ')', true);
+    } else {
+      dispatchRelocationTask(sourceBay.id, dest.id);
+      consoleRow(sourceBay.code + ' / ' + dest.code, 'relocating stock from ' + sourceBay.name + ' (' + sourceBay.code + ') \u2192 ' + dest.name + ' (' + dest.code + ')', true);
+    }
+  }
+
+  function submitConsole(){
+    runCommand(trackInput.value, bayInput.value);
+    trackInput.value = '';
+    bayInput.value = '';
+    trackInput.focus();
+  }
+  trackInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitConsole(); });
+  bayInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitConsole(); });
+
+  // ---------- render loop ----------
+  function normDiff(a, b){
+    var d = (b - a) % (Math.PI*2);
+    if(d > Math.PI) d -= Math.PI*2;
+    if(d < -Math.PI) d += Math.PI*2;
+    return d;
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var now = performance.now();
+    orbit.target.x += (orbit.targetGoal.x - orbit.target.x) * 0.12;
+    orbit.target.z += (orbit.targetGoal.z - orbit.target.z) * 0.12;
+    orbit.radius += (orbit.radiusGoal - orbit.radius) * 0.12;
+    updateCamera();
+    robots.forEach(function(r){
+      var t = r.stepStart ? Math.min(1, (now - r.stepStart) / STEP_MS) : 1;
+      var x = r.prevWorld.x + (r.nextWorld.x - r.prevWorld.x) * t;
+      var z = r.prevWorld.z + (r.nextWorld.z - r.prevWorld.z) * t;
+      r.mesh.group.position.set(x, 0, z);
+      r.mesh.group.rotation.y += normDiff(r.mesh.group.rotation.y, r.targetAngle) * 0.25;
+      if(r.status === 'idle'){
+        r.mesh.halo.material.opacity = 0.12 + 0.12*Math.sin(now*0.003 + r.id);
+      }
+    });
+    renderer.render(scene, camera);
+  }
+
+  resizeRenderer();
+  updateCamera();
+  initRobots();
+  renderDirectory();
+  log('Fleet online — ' + ROBOT_COUNT + ' robots ready. 10 tracks, each item auto-routed to its own named destination.', 'dispatch');
+  consoleRow('—', 'enter a track, then press Enter (destination auto-fills)', true);
+  animate();
+})();
+</script>
+</body>
+</html>
